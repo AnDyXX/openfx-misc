@@ -87,11 +87,12 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\openfx\include;$(SolutionDir)..\openfx\Support\include;$(SolutionDir)..\openfx\Support\Plugins\include;$(SolutionDir)..\CImg;C:\Users\lex\Documents\GitHub\CImg;$(SolutionDir)..\SupportExt</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>OFX_EXTENSIONS_VEGAS;OFX_EXTENSIONS_TUTTLE;OFX_EXTENSIONS_NUKE;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;WIN32;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ProgramDataBaseFileName>c:/Program Files/Common Files/OFX/Plugins/$(ProjectName).ofx.bundle/Contents/Win64/$(ProjectName).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>opengl32.lib;$(SolutionDir)$(Platform)\$(Configuration)\Support.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(ProjectName).ofx.bundle/Contents/Win32/$(ProjectName).ofx</OutputFile>
+      <OutputFile>c:/Program Files/Common Files/OFX/Plugins/$(ProjectName).ofx.bundle/Contents/Win64/$(ProjectName).ofx</OutputFile>
     </Link>
     <PostBuildEvent>
       <Command>xcopy $(SolutionDir)..\CImg\net.sf.cimg.CImgBlur.png $(OutDir)$(ProjectName).ofx.bundle\Contents\Resources\ /Y
@@ -198,12 +199,13 @@ xcopy $(SolutionDir)..\CImg\net.sf.cimg.CImgSmooth.png $(OutDir)$(ProjectName).o
       <AdditionalIncludeDirectories>$(SolutionDir)..\openfx\include;$(SolutionDir)..\openfx\Support\include;$(SolutionDir)..\openfx\Support\Plugins\include;$(SolutionDir)..\CImg;C:\Users\lex\Documents\GitHub\CImg;$(SolutionDir)..\SupportExt</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>OFX_EXTENSIONS_VEGAS;OFX_EXTENSIONS_TUTTLE;OFX_EXTENSIONS_NUKE;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;WIN64;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ProgramDataBaseFileName>c:/Program Files/Common Files/OFX/Plugins/$(ProjectName).ofx.bundle/Contents/Win64/$(ProjectName).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <OutputFile>$(OutDir)$(ProjectName).ofx.bundle/Contents/Win64/$(ProjectName).ofx</OutputFile>
+      <OutputFile>c:/Program Files/Common Files/OFX/Plugins/$(ProjectName).ofx.bundle/Contents/Win64/$(ProjectName).ofx</OutputFile>
       <AdditionalDependencies>opengl32.lib;$(SolutionDir)$(Platform)\$(Configuration)\Support.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Lib>

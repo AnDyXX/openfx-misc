@@ -1,5 +1,5 @@
 #include "Add.h"
-#include "AdjustRoD.h"
+//#include "AdjustRoD.h"
 #include "Anaglyph.h"
 #include "CheckerBoard.h"
 #include "ChromaKeyer.h"
@@ -34,7 +34,7 @@
 #include "Position.h"
 #include "Premult.h"
 #include "Radial.h"
-#include "Ramp.h"
+//#include "Ramp.h"
 #include "ReConverge.h"
 #include "Rectangle.h"
 #include "Retime.h"
@@ -56,7 +56,7 @@ namespace OFX
         void getPluginIDs(OFX::PluginFactoryArray &ids)
         {
             getAddPluginID(ids);
-            getAdjustRoDPluginID(ids);
+            //getAdjustRoDPluginID(ids);
             getAnaglyphPluginID(ids);
             getCheckerBoardPluginID(ids);
             getChromaKeyerPluginID(ids);
@@ -79,11 +79,11 @@ namespace OFX
             getHSVToolPluginID(ids);
             getImageStatisticsPluginID(ids);
             getInvertPluginID(ids);
-            getJoinViewsPluginID(ids);
+            //getJoinViewsPluginID(ids);
             getKeyerPluginID(ids);
             getMergePluginID(ids);
             getMirrorPluginID(ids);
-            getMixViewsPluginID(ids);
+            //getMixViewsPluginID(ids);
             getMultiplyPluginID(ids);
             getNoisePluginID(ids);
             getNoOpPluginID(ids);
@@ -91,17 +91,17 @@ namespace OFX
             getPositionPluginID(ids);
             getPremultPluginIDs(ids);
             getRadialPluginID(ids);
-            getRampPluginID(ids);
+            //getRampPluginID(ids);
 #ifdef DEBUG
             getReConvergePluginID(ids);
 #endif
             getRectanglePluginID(ids);
             getRetimePluginID(ids);
-            getColorLookupPluginID(ids);
+            //getColorLookupPluginID(ids);
             getRotoPluginID(ids);
             getSaturationPluginID(ids);
             getShufflePluginID(ids);
-            getSideBySidePluginID(ids);
+            //getSideBySidePluginID(ids);
             getSwitchPluginID(ids);
             getTimeOffsetPluginID(ids);
             getTrackerPMPluginID(ids);
