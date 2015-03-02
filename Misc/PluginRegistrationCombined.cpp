@@ -1,5 +1,5 @@
 #include "Add.h"
-//#include "AdjustRoD.h"
+#include "AdjustRoD.h"
 #include "Anaglyph.h"
 #include "CheckerBoard.h"
 #include "ChromaKeyer.h"
@@ -34,7 +34,7 @@
 #include "Position.h"
 #include "Premult.h"
 #include "Radial.h"
-//#include "Ramp.h"
+#include "Ramp.h"
 #include "ReConverge.h"
 #include "Rectangle.h"
 #include "Retime.h"
@@ -56,8 +56,8 @@ namespace OFX
         void getPluginIDs(OFX::PluginFactoryArray &ids)
         {
             getAddPluginID(ids);
-            //getAdjustRoDPluginID(ids);
-            getAnaglyphPluginID(ids);
+            getAdjustRoDPluginID(ids);
+            //getAnaglyphPluginID(ids);
             getCheckerBoardPluginID(ids);
             getChromaKeyerPluginID(ids);
             getClampPluginID(ids);
@@ -87,11 +87,11 @@ namespace OFX
             getMultiplyPluginID(ids);
             getNoisePluginID(ids);
             getNoOpPluginID(ids);
-            getOneViewPluginID(ids);
+            //getOneViewPluginID(ids);
             getPositionPluginID(ids);
             getPremultPluginIDs(ids);
             getRadialPluginID(ids);
-            //getRampPluginID(ids);
+            getRampPluginID(ids);
 #ifdef DEBUG
             getReConvergePluginID(ids);
 #endif
