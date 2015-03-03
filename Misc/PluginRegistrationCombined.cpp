@@ -48,6 +48,8 @@
 #include "TrackerPM.h"
 #include "Transform.h"
 #include "VectorToColor.h"
+#include "TestPosition.h"
+#include "Spherise.h"
 
 namespace OFX
 {
@@ -107,6 +109,10 @@ namespace OFX
             getTrackerPMPluginID(ids);
             getTransformPluginIDs(ids);
             getVectorToColorPluginID(ids);
+
+			getTestPositionPluginID(ids);
+
+			getSpherisePluginID(ids);
         }
     }
 }
