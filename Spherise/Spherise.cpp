@@ -14,6 +14,8 @@ Copyright (C) 2015 AnDyX
 #include <windows.h>
 #endif
 
+#include "ofxsTransformInteract.h"
+
 #include "ofxsProcessing.H"
 #include "ofxsMaskMix.h"
 #include "ofxsMacros.h"
@@ -122,6 +124,7 @@ void AddSpheriseFactory::describe(OFX::ImageEffectDescriptor &desc)
 	desc.setSupportsMultipleClipPARs(kSupportsMultipleClipPARs);
 	desc.setSupportsMultipleClipDepths(kSupportsMultipleClipDepths);
 	desc.setRenderThreadSafety(kRenderThreadSafety);
+
 }
 
 void AddSpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::ContextEnum context)
@@ -153,9 +156,7 @@ void AddSpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX
 	{
 		Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamTransformTranslate);
 		param->setLabel(kParamTransformTranslateLabel);
-		//param->setDoubleType(eDoubleTypeNormalisedXY); // deprecated in OpenFX 1.2
 		param->setDoubleType(eDoubleTypeXYAbsolute);
-		//param->setDimensionLabels("x","y");
 		param->setDefault(0, 0);
 		param->setIncrement(10.);
 		if (page) {
