@@ -1,5 +1,5 @@
 /*
-OFX Spherise plugin.
+AX Spherise plugin.
 
 Copyright (C) 2015 AnDyX
 
@@ -20,7 +20,7 @@ Copyright (C) 2015 AnDyX
 #include "ofxsMaskMix.h"
 #include "ofxsMacros.h"
 
-#define kPluginName "SpheriseOFX"
+#define kPluginName "SpheriseAX"
 #define kPluginGrouping "Transform"
 #define kPluginDescription "Make spherise/unspherise around choosen point."
 #define kPluginIdentifier "org.andyx.SpherisePlugin"
@@ -35,13 +35,8 @@ Copyright (C) 2015 AnDyX
 #define kSupportsMultipleClipDepths false
 #define kRenderThreadSafety eRenderFullySafe
 
-
-
 #define kParamTransformTranslate "translate"
 #define kParamTransformTranslateLabel "Translate"
-
-
-
 
 
 using namespace OFX;

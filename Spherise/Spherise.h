@@ -1,5 +1,5 @@
 /*
-OFX Spherise plugin.
+AX Spherise plugin.
 
 Copyright (C) 2015 AnDyX
 
