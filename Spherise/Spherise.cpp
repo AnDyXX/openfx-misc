@@ -451,7 +451,7 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 		param->setLabel(kParamSizeLabel);
 		param->setHint(kParamSizeHint);
 		param->setDefault(0.005);
-		param->setRange(0, 0.2);
+		param->setRange(0, 1);
 		param->setIncrement(0.01);
 		param->setDisplayRange(0, 0.2);
 		param->setAnimates(true); // can animate
