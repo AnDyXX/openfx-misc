@@ -22,8 +22,8 @@ Copyright (C) 2015 AnDyX
 #define kPluginGrouping "Transform"
 #define kPluginDescription "Make spherise/unspherise around choosen point."
 #define kPluginIdentifier "org.andyx.SpherisePlugin"
-#define kPluginVersionMajor 0 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
-#define kPluginVersionMinor 1 // Increment this when you have fixed a bug or made it faster.
+#define kPluginVersionMajor 1 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
+#define kPluginVersionMinor 0 // Increment this when you have fixed a bug or made it faster.
 
 
 #define kSupportsTiles 1
@@ -35,6 +35,12 @@ Copyright (C) 2015 AnDyX
 
 #define kParamCenterPoint "centerPoint"
 #define kParamCenterPointLabel "Center Point"
+#define  kParamSize "size"
+#define kParamSizeLabel "Size"
+#define kParamSizeHint "Size of effect"
+#define kParamAmount "amount"
+#define kParamAmountLabel "Amount"
+#define kParamAmountHint "Amount of effect"
 
 
 using namespace OFX;
@@ -44,6 +50,10 @@ class SpheriseProcessorBase : public OFX::ImageProcessor
 {
 protected:
 	const OFX::Image *_srcImg;
+	double amount;
+	int size;
+	int centerX;
+	int centerY;
 public:
 	SpheriseProcessorBase(OFX::ImageEffect &instance)
 		: OFX::ImageProcessor(instance)
@@ -52,6 +62,44 @@ public:
 		}
 
 	void setSrcImg(const OFX::Image *v) { _srcImg = v; }
+	void setValues(int _centerX, int _centerY, int _size, double _amount){
+		amount = _amount;
+		size = _size;
+		centerX = _centerX;
+		centerY = _centerY;
+	}
+
+	void calculatePoint(double _x, double _y, int& outX, int& outY){
+		double dX = (_x - (double)centerX);
+		double dY = (_y - (double)centerY);
+
+		double len2 = (dX*dX) + (dY*dY);
+		double len = sqrt(len2);
+
+		double sss = len / (double)size;
+
+		double sss2 = pow(sss, amount);
+
+		dX = dX * (sss2 / sss);
+		dY = dY * (sss2 / sss);
+
+		outX = centerX + dX;
+		outY = centerY + dY;
+	}
+
+	void getXBoundaries(int currentY, int& minX, int& maxX){
+		minX = -1;
+		maxX = -1;
+
+		if (std::abs(currentY - centerY) <= size){
+			double lenY = (double)(std::abs(currentY - centerY));
+			double len2 = ((double)size * (double)size) - (lenY * lenY);
+			double len = sqrt(len2);
+
+			minX = centerX - len;
+			maxX = centerX + len;
+		}
+	}
 };
 
 
@@ -71,17 +119,17 @@ private:
 	void multiThreadProcessImages(OfxRectI procWindow)
 	{
 		if (nComponents == 1) {
-			return process<false, false, false, true >(procWindow);
+			return process<false, true>(procWindow);
 		}
 		else if (nComponents == 3) {
-			return process<true, true, true, false>(procWindow);
+			return process<true, false>(procWindow);
 		}
 		else if (nComponents == 4) {
-			return process<true, true, true, true >(procWindow);
+			return process<true, true >(procWindow);
 		}
 	}
 
-	template<bool processR, bool processG, bool processB, bool processA>
+	template<bool processRGB, bool processA>
 	void process(const OfxRectI& procWindow)
 	{
 		assert(nComponents == 1 || nComponents == 3 || nComponents == 4);
@@ -96,19 +144,36 @@ private:
 
 			//raw values from pixel in 0-1
 			float unpPix[4];
+			int minX;
+			int maxX;
+			int outX;
+			int outY;
+
+			getXBoundaries(y, minX, maxX);
 
 			for (int x = procWindow.x1; x < procWindow.x2; x++) {
-				//get src pixel
-				const PIX *srcPix = (const PIX *)(_srcImg ? _srcImg->getPixelAddress(x, y) : 0);
-				//normalise values to 0-1
-				ofxsUnPremult<PIX, nComponents, maxValue>(srcPix, unpPix, true, 0);
+				PIX *srcPix = 0;
 
-				//unpPix[0] = 0.0f;
-				//unpPix[2] = 0.1;
+				if (x >= minX && x <= maxX){
+					unpPix[0] = 0.0;
+					unpPix[1] = 0.0;
+
+					calculatePoint(x, y, outX, outY);
+					//get src pixel
+					srcPix = (PIX *)(_srcImg ? _srcImg->getPixelAddress(outX, outY) : 0);
+					//normalise values to 0-1
+					ofxsUnPremult<PIX, nComponents, maxValue>(srcPix, unpPix, true, 0);
+				}
+				else{
+					//get src pixel
+					srcPix = (PIX *)(_srcImg ? _srcImg->getPixelAddress(x, y) : 0);
+					//normalise values to 0-1
+					ofxsUnPremult<PIX, nComponents, maxValue>(srcPix, unpPix, true, 0);
+				}
+
 
 				ofxsPremultMaskMixPix<PIX, nComponents, maxValue, false>(unpPix, false, 0, x, y, srcPix, false, 0, 1.0f, false, dstPix);
-				//ofxsJustPremult2<PIX, nComponents, maxValue, false>(unpPix, dstPix);
-				//ofxsJustPremult<PIX, nComponents, maxValue, false>(unpPix, dstPix);
+
 				// increment the dst pixel
 				dstPix += nComponents;
 			}
@@ -120,6 +185,9 @@ private:
 /** @brief The plugin that does our work */
 class SpherisePlugin : public OFX::ImageEffect
 {
+protected:
+	OFX::DoubleParam  *_size;
+	OFX::DoubleParam  *_amount;
 public:
 	/** @brief ctor */
 	SpherisePlugin(OfxImageEffectHandle handle)
@@ -127,14 +195,19 @@ public:
 		, _dstClip(0)
 		, _srcClip(0)
 		, _centerPoint(0)
+		, _size(0)
+		, _amount(0)
+
 	{
 		_dstClip = fetchClip(kOfxImageEffectOutputClipName);
-		assert(_dstClip && (_dstClip->getPixelComponents() == ePixelComponentAlpha || _dstClip->getPixelComponents() == ePixelComponentRGB || _dstClip->getPixelComponents() == ePixelComponentRGBA));
+		assert(_dstClip && (_dstClip->getPixelComponents() == ePixelComponentRGB || _dstClip->getPixelComponents() == ePixelComponentRGBA));
 		_srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
-		assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentAlpha || _srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
+		assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
 
 		// NON-GENERIC
 		_centerPoint = fetchDouble2DParam(kParamCenterPoint);
+		_size = fetchDoubleParam(kParamSize);
+		_amount = fetchDoubleParam(kParamAmount);
 	}
 private:
 	/* Override the render */
@@ -196,6 +269,19 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 	processor.setSrcImg(src.get());
 	processor.setRenderWindow(args.renderWindow);
 
+	double amount = _amount->getValueAtTime(args.time);
+	double sizeDbl = _size->getValueAtTime(args.time);
+
+	OfxPointD center;
+	_centerPoint->getValueAtTime(args.time, center.x, center.y);
+
+	OfxRectI bounds = src->getBounds();
+
+	int size = ((double)bounds.x2 * sizeDbl);
+	int centerX = ((double)bounds.x2 * center.x);
+	int centerY = ((double)bounds.y2 * center.y);
+
+	processor.setValues(centerX, centerY, size, amount);
 	processor.process();
 
 }
@@ -282,12 +368,10 @@ bool
 SpherisePlugin::isIdentity(const IsIdentityArguments &/*args*/, Clip * &identityClip, double & identityTime)
 {
 	// NON-GENERIC
+	double amount = _amount->getValueAtTime(identityTime);
+	double size = _size->getValueAtTime(identityTime);
 
-	OfxPointD centerPoint;
-
-	_centerPoint->getValueAtTime(identityTime, centerPoint.x, centerPoint.y);
-
-	if (centerPoint.x == 0. && centerPoint.y == 0.) {
+	if (amount == 0.0 || size == 0.0){
 		return true;
 	}
 
@@ -356,6 +440,38 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 		param->setDoubleType(eDoubleTypeXYAbsolute);
 		param->setDefault(0, 0);
 		param->setIncrement(0.1);
+		if (page) {
+			page->addChild(*param);
+		}
+	}
+
+	// Size
+	{
+		DoubleParamDescriptor *param = desc.defineDoubleParam(kParamSize);
+		param->setLabel(kParamSizeLabel);
+		param->setHint(kParamSizeHint);
+		param->setDefault(0.005);
+		param->setRange(0, 0.2);
+		param->setIncrement(0.01);
+		param->setDisplayRange(0, 0.2);
+		param->setAnimates(true); // can animate
+		param->setDoubleType(eDoubleTypeScale);
+		if (page) {
+			page->addChild(*param);
+		}
+	}
+
+	// amount
+	{
+		DoubleParamDescriptor *param = desc.defineDoubleParam(kParamAmount);
+		param->setLabel(kParamAmountLabel);
+		param->setHint(kParamAmountHint);
+		param->setDefault(0.2);
+		param->setRange(0, 10);
+		param->setIncrement(0.91);
+		param->setDisplayRange(0, 1);
+		param->setAnimates(true); // can animate
+		param->setDoubleType(eDoubleTypeScale);
 		if (page) {
 			page->addChild(*param);
 		}
