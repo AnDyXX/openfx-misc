@@ -23,7 +23,7 @@ Copyright (C) 2015 AnDyX
 #define kPluginDescription "Make spherise/unspherise around choosen point."
 #define kPluginIdentifier "org.andyx.SpherisePlugin"
 #define kPluginVersionMajor 1 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
-#define kPluginVersionMinor 0 // Increment this when you have fixed a bug or made it faster.
+#define kPluginVersionMinor 1 // Increment this when you have fixed a bug or made it faster.
 
 
 #define kSupportsTiles 1
@@ -41,7 +41,9 @@ Copyright (C) 2015 AnDyX
 #define kParamAmount "amount"
 #define kParamAmountLabel "Amount"
 #define kParamAmountHint "Amount of effect"
-
+#define kParamUsePx "usePx"
+#define kParamUsePxLabel "Center Point Uses px"
+#define kParamusePxHint "Center Point Uses px instead of "
 
 using namespace OFX;
 
@@ -188,6 +190,7 @@ class SpherisePlugin : public OFX::ImageEffect
 protected:
 	OFX::DoubleParam  *_size;
 	OFX::DoubleParam  *_amount;
+	OFX::BooleanParam* _CenterUsePx;
 public:
 	/** @brief ctor */
 	SpherisePlugin(OfxImageEffectHandle handle)
@@ -208,6 +211,7 @@ public:
 		_centerPoint = fetchDouble2DParam(kParamCenterPoint);
 		_size = fetchDoubleParam(kParamSize);
 		_amount = fetchDoubleParam(kParamAmount);
+		_CenterUsePx = fetchBooleanParam(kParamUsePx);
 	}
 private:
 	/* Override the render */
@@ -272,14 +276,17 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 	double amount = _amount->getValueAtTime(args.time);
 	double sizeDbl = _size->getValueAtTime(args.time);
 
+	bool centerUsePx;
+	_CenterUsePx->getValueAtTime(args.time, centerUsePx);
+
 	OfxPointD center;
 	_centerPoint->getValueAtTime(args.time, center.x, center.y);
 
 	OfxRectI bounds = src->getBounds();
 
 	int size = ((double)bounds.x2 * sizeDbl);
-	int centerX = ((double)bounds.x2 * center.x);
-	int centerY = ((double)bounds.y2 * center.y);
+	int centerX = ((centerUsePx ? 1.0 : (double)bounds.x2) * center.x);
+	int centerY = ((centerUsePx ? 1.0 : (double)bounds.y2) * center.y);
 
 	processor.setValues(centerX, centerY, size, amount);
 	processor.process();
@@ -433,13 +440,26 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 
 	// make some pages and to things in
 	PageParamDescriptor *page = desc.definePageParam("Controls");
-	// translate
+	// center point
 	{
 		Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamCenterPoint);
 		param->setLabel(kParamCenterPointLabel);
 		param->setDoubleType(eDoubleTypeXYAbsolute);
 		param->setDefault(0, 0);
 		param->setIncrement(0.1);
+		if (page) {
+			page->addChild(*param);
+		}
+	}
+
+	// use px
+	{
+		BooleanParamDescriptor* param = desc.defineBooleanParam(kParamUsePx);
+		param->setLabel(kParamUsePxLabel);
+		param->setHint(kParamusePxHint);
+		// don't check it by default: it is easy to obtain Uniform scaling using the slider or the interact
+		param->setDefault(false);
+		param->setAnimates(true);
 		if (page) {
 			page->addChild(*param);
 		}
