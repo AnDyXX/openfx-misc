@@ -1,5 +1,5 @@
 /*
- OFX Roto plugin.
+ OFX CornerPin plugin.
  
  Copyright (C) 2014 INRIA
  
@@ -86,7 +86,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <sstream>
 #include <vector>
 
 #ifdef __APPLE__
