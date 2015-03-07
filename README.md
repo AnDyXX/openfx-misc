@@ -1,11 +1,15 @@
 OpenFX-Misc [![Build Status](https://api.travis-ci.org/devernay/openfx-misc.png?branch=master)](https://travis-ci.org/devernay/openfx-misc) [![Coverity Scan Build Status](https://scan.coverity.com/projects/2945/badge.svg)](https://scan.coverity.com/projects/2945 "Coverity Badge")
 ===========
 
-AnDyX OpenFx plugins:
+AnDyX OpenFX plugins:
+--------
 
 SpheriseAX - allows to create effect similar to Liquify plugin in Photoshop. Effect can be seen here:  https://www.youtube.com/watch?v=L8ruw8gKPjc
 
+Will try to make it work on other hosts. Currently I have Sony Vegas trial. Hope I will be able to make plugins to work before trial expires.
 
+Original README content
+--------
 
 Miscellaneous OFX / OpenFX / Open Effects plugins.
 
