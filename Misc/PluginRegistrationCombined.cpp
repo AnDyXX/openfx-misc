@@ -88,7 +88,7 @@ namespace OFX
             //getMixViewsPluginID(ids);
             getMultiplyPluginID(ids);
             getNoisePluginID(ids);
-            getNoOpPluginID(ids);
+            //getNoOpPluginID(ids);
             //getOneViewPluginID(ids);
             getPositionPluginID(ids);
             getPremultPluginIDs(ids);
@@ -110,7 +110,7 @@ namespace OFX
             getTransformPluginIDs(ids);
             getVectorToColorPluginID(ids);
 
-			getTestPositionPluginID(ids);
+			//getTestPositionPluginID(ids);
 
 			getSpherisePluginID(ids);
         }

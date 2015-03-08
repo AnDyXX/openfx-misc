@@ -256,8 +256,7 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 	std::auto_ptr<const OFX::Image> src((_srcClip && _srcClip->isConnected()) ?
 		_srcClip->fetchImage(args.time) : 0);
 	if (src.get()) {
-		if (src->getRenderScale().x != args.renderScale.x ||
-			src->getRenderScale().y != args.renderScale.y ||
+		if (
 			(src->getField() != OFX::eFieldNone /* for DaVinci Resolve */ && src->getField() != args.fieldToRender)) {
 			setPersistentMessage(OFX::Message::eMessageError, "", "OFX Host gave image with wrong scale or field properties");
 			OFX::throwSuiteStatusException(kOfxStatFailed);
@@ -282,11 +281,11 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 	OfxPointD center;
 	_centerPoint->getValueAtTime(args.time, center.x, center.y);
 
-	OfxRectI bounds = src->getBounds();
+	OfxRectI bounds = dst->getRegionOfDefinition();
 
 	int size = ((double)bounds.x2 * sizeDbl);
-	int centerX = ((centerUsePx ? 1.0 : (double)bounds.x2) * center.x);
-	int centerY = ((centerUsePx ? 1.0 : (double)bounds.y2) * center.y);
+	int centerX = ((centerUsePx ? dst->getRenderScale().x : (double)bounds.x2) * center.x);
+	int centerY = ((centerUsePx ? dst->getRenderScale().y : (double)bounds.y2) * center.y);
 
 	processor.setValues(centerX, centerY, size, amount);
 	processor.process();
