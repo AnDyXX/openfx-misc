@@ -82,6 +82,7 @@
 
 #include "ofxsMacros.h"
 #include "ofxNatron.h"
+#include "ofxsCopier.h"
 
 #ifdef OFX_EXTENSIONS_NUKE
 #include "nuke/fnOfxExtensions.h"
@@ -123,6 +124,9 @@ private:
     /* override is identity */
     virtual bool isIdentity(const OFX::IsIdentityArguments &args, OFX::Clip * &identityClip, double &identityTime) OVERRIDE FINAL;
 
+    // override the roi call
+    virtual void getRegionsOfInterest(const OFX::RegionsOfInterestArguments &args, OFX::RegionOfInterestSetter &rois) OVERRIDE FINAL;
+
     virtual bool getRegionOfDefinition(const OFX::RegionOfDefinitionArguments &args, OfxRectD &rod) OVERRIDE FINAL;
 
 #ifdef OFX_EXTENSIONS_NUKE
@@ -135,6 +139,7 @@ private:
 
 private:
     // do not need to delete these, the ImageEffect is managing them for us
+    OFX::Clip* _dstClip;
     std::vector<OFX::Clip *> _srcClip;
 
     OFX::IntParam *_which;
@@ -142,9 +147,12 @@ private:
 
 SwitchPlugin::SwitchPlugin(OfxImageEffectHandle handle, bool numerousInputs)
 : ImageEffect(handle)
+, _dstClip(0)
 , _srcClip(numerousInputs ? kClipSourceCount : 2)
 , _which(0)
 {
+    _dstClip = fetchClip(kOfxImageEffectOutputClipName);
+    assert(_dstClip && (_dstClip->getPixelComponents() == OFX::ePixelComponentAlpha || _dstClip->getPixelComponents() == OFX::ePixelComponentRGB || _dstClip->getPixelComponents() == OFX::ePixelComponentRGBA));
     for (unsigned i = 0; i < _srcClip.size(); ++i) {
         if (getContext() == OFX::eContextFilter && i == 0) {
             _srcClip[i] = fetchClip(kOfxImageEffectSimpleSourceClipName);
@@ -161,9 +169,47 @@ SwitchPlugin::SwitchPlugin(OfxImageEffectHandle handle, bool numerousInputs)
 }
 
 void
-SwitchPlugin::render(const OFX::RenderArguments &/*args*/)
+SwitchPlugin::render(const OFX::RenderArguments &args)
 {
     // do nothing as this should never be called as isIdentity should always be trapped
+    assert(false);
+
+    // copy input to output
+    int input;
+    _which->getValueAtTime(args.time, input);
+    input = std::max(0, std::min(input, (int)_srcClip.size()-1));
+    OFX::Clip *srcClip = _srcClip[input];
+    assert(kSupportsMultipleClipPARs   || !srcClip || srcClip->getPixelAspectRatio() == _dstClip->getPixelAspectRatio());
+    assert(kSupportsMultipleClipDepths || !srcClip || srcClip->getPixelDepth()       == _dstClip->getPixelDepth());
+    // do the rendering
+    std::auto_ptr<OFX::Image> dst(_dstClip->fetchImage(args.time));
+    if (!dst.get()) {
+        OFX::throwSuiteStatusException(kOfxStatFailed);
+    }
+    if (dst->getRenderScale().x != args.renderScale.x ||
+        dst->getRenderScale().y != args.renderScale.y ||
+        (dst->getField() != OFX::eFieldNone /* for DaVinci Resolve */ && dst->getField() != args.fieldToRender)) {
+        setPersistentMessage(OFX::Message::eMessageError, "", "OFX Host gave image with wrong scale or field properties");
+        OFX::throwSuiteStatusException(kOfxStatFailed);
+    }
+    OFX::BitDepthEnum dstBitDepth       = dst->getPixelDepth();
+    OFX::PixelComponentEnum dstComponents  = dst->getPixelComponents();
+    std::auto_ptr<const OFX::Image> src((srcClip && srcClip->isConnected()) ?
+                                        srcClip->fetchImage(args.time) : 0);
+    if (src.get()) {
+        if (src->getRenderScale().x != args.renderScale.x ||
+            src->getRenderScale().y != args.renderScale.y ||
+            (src->getField() != OFX::eFieldNone /* for DaVinci Resolve */ && src->getField() != args.fieldToRender)) {
+            setPersistentMessage(OFX::Message::eMessageError, "", "OFX Host gave image with wrong scale or field properties");
+            OFX::throwSuiteStatusException(kOfxStatFailed);
+        }
+        OFX::BitDepthEnum    srcBitDepth      = src->getPixelDepth();
+        OFX::PixelComponentEnum srcComponents = src->getPixelComponents();
+        if (srcBitDepth != dstBitDepth || srcComponents != dstComponents) {
+            OFX::throwSuiteStatusException(kOfxStatErrImageFormat);
+        }
+    }
+    copyPixels(*this, args.renderWindow, src.get(), dst.get());
 }
 
 // overridden is identity
@@ -175,6 +221,25 @@ SwitchPlugin::isIdentity(const OFX::IsIdentityArguments &args, OFX::Clip * &iden
     input = std::max(0, std::min(input, (int)_srcClip.size()-1));
     identityClip = _srcClip[input];
     return true;
+}
+
+// override the roi call
+// Required if the plugin requires a region from the inputs which is different from the rendered region of the output.
+// (this is the case here)
+void
+SwitchPlugin::getRegionsOfInterest(const OFX::RegionsOfInterestArguments &args, OFX::RegionOfInterestSetter &rois)
+{
+    // this should never be called as isIdentity should always be trapped
+    assert(false);
+    int input;
+    _which->getValueAtTime(args.time, input);
+    input = std::max(0, std::min(input, (int)_srcClip.size()-1));
+    const OfxRectD emptyRoI = {0., 0., 0., 0.};
+    for (unsigned i = 0; i < _srcClip.size(); ++i) {
+        if (i != (unsigned)input) {
+            rois.setRegionOfInterest(*_srcClip[i], emptyRoI);
+        }
+    }
 }
 
 bool
@@ -318,13 +383,13 @@ void SwitchPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OF
     }
 
     if (numerousInputs) {
-        for (int i = 0; i < clipSourceCount; ++i) {
+        for (int i = 2; i < clipSourceCount; ++i) {
             assert(i < 100);
             ClipDescriptor *srcClip;
             char name[3] = { 0, 0, 0 }; // don't use std::stringstream (not thread-safe on OSX)
             name[0] = (i < 10) ? ('0' + i) : ('0' + i / 10);
             name[1] = (i < 10) ?         0 : ('0' + i % 10);
-			srcClip = desc.defineClip(name);
+            srcClip = desc.defineClip(name);
             srcClip->setOptional(true);
             srcClip->addSupportedComponent(ePixelComponentNone);
             srcClip->addSupportedComponent(ePixelComponentRGB);
