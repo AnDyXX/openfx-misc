@@ -23,10 +23,10 @@ Copyright (C) 2015 AnDyX
 #define kPluginDescription "Make spherise/unspherise around choosen point."
 #define kPluginIdentifier "org.andyx.SpherisePlugin"
 #define kPluginVersionMajor 1 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
-#define kPluginVersionMinor 1 // Increment this when you have fixed a bug or made it faster.
+#define kPluginVersionMinor 2 // Increment this when you have fixed a bug or made it faster.
 
 
-#define kSupportsTiles 1
+#define kSupportsTiles 0
 #define kSupportsMultiResolution 1
 #define kSupportsRenderScale 1
 #define kSupportsMultipleClipPARs false
@@ -75,18 +75,19 @@ public:
 		double dX = (_x - (double)centerX);
 		double dY = (_y - (double)centerY);
 
-		double len2 = (dX*dX) + (dY*dY);
-		double len = sqrt(len2);
+		double len = sqrt((dX*dX) + (dY*dY));
 
-		double sss = len / (double)size;
+		//make it 0-1 like premult
+		double temp = len / (double)size;
 
-		double sss2 = pow(sss, amount);
+		//calculate new size
+		len = pow(temp, amount) / temp;
 
-		dX = dX * (sss2 / sss);
-		dY = dY * (sss2 / sss);
+		dX = dX * len;
+		dY = dY * len;
 
-		outX = centerX + dX;
-		outY = centerY + dY;
+		outX = int(centerX + dX);
+		outY = int(centerY + dY);
 	}
 
 	void getXBoundaries(int currentY, int& minX, int& maxX){
@@ -98,8 +99,8 @@ public:
 			double len2 = ((double)size * (double)size) - (lenY * lenY);
 			double len = sqrt(len2);
 
-			minX = centerX - len;
-			maxX = centerX + len;
+			minX = static_cast<int>(centerX - len);
+			maxX = static_cast<int>(centerX + len);
 		}
 	}
 };
@@ -283,9 +284,9 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 
 	OfxRectI bounds = dst->getRegionOfDefinition();
 
-	int size = ((double)bounds.x2 * sizeDbl);
-	int centerX = ((centerUsePx ? dst->getRenderScale().x : (double)bounds.x2) * center.x);
-	int centerY = ((centerUsePx ? dst->getRenderScale().y : (double)bounds.y2) * center.y);
+	int size = int((double)bounds.x2 * sizeDbl);
+	int centerX = int((centerUsePx ? dst->getRenderScale().x : (double)bounds.x2) * center.x);
+	int centerY = int((centerUsePx ? dst->getRenderScale().y : (double)bounds.y2) * center.y);
 
 	processor.setValues(centerX, centerY, size, amount);
 	processor.process();
