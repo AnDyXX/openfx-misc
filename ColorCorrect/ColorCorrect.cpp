@@ -680,7 +680,7 @@ public:
         _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
         assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
         _maskClip = getContext() == OFX::eContextFilter ? NULL : fetchClip(getContext() == OFX::eContextPaint ? "Brush" : "Mask");
-        assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha);
+		assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha || _maskClip->getPixelComponents() == ePixelComponentRGBA);
         fetchColorControlGroup(kGroupMaster, &_masterParamsGroup);
         fetchColorControlGroup(kGroupShadows, &_shadowsParamsGroup);
         fetchColorControlGroup(kGroupMidtones, &_midtonesParamsGroup);
