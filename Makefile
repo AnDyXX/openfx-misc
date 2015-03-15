@@ -4,6 +4,7 @@ SUBDIRS_NOMULTI = \
 Add \
 AdjustRoD \
 Anaglyph \
+AppendClip \
 CheckerBoard \
 ChromaKeyer \
 Clamp \
@@ -19,6 +20,8 @@ Deinterlace \
 Difference \
 Dissolve \
 FrameBlend \
+FrameHold \
+FrameRange \
 Gamma \
 GodRays \
 Grade \

@@ -1,6 +1,7 @@
 #include "Add.h"
 #include "AdjustRoD.h"
 #include "Anaglyph.h"
+#include "AppendClip.h"
 #include "CheckerBoard.h"
 #include "ChromaKeyer.h"
 #include "Clamp.h"
@@ -16,6 +17,8 @@
 #include "Difference.h"
 #include "Dissolve.h"
 #include "FrameBlend.h"
+#include "FrameHold.h"
+#include "FrameRange.h"
 #include "Gamma.h"
 #include "GodRays.h"
 #include "Grade.h"
@@ -61,6 +64,7 @@ namespace OFX
             getAddPluginID(ids);
             getAdjustRoDPluginID(ids);
             //getAnaglyphPluginID(ids);
+            getAppendClipPluginID(ids);
             getCheckerBoardPluginID(ids);
             getChromaKeyerPluginID(ids);
             getClampPluginID(ids);
@@ -76,6 +80,8 @@ namespace OFX
             getDifferencePluginID(ids);
             getDissolvePluginID(ids);
             getFrameBlendPluginID(ids);
+            getFrameHoldPluginID(ids);
+            getFrameRangePluginID(ids);
             getGammaPluginID(ids);
             getGodRaysPluginID(ids);
             getGradePluginID(ids);
