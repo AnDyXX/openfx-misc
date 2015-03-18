@@ -80,6 +80,7 @@
 #include <algorithm>
 
 #include "ofxsProcessing.H"
+#include "ofxsPixelProcessor.h"
 #include "ofxsMacros.h"
 
 #define kPluginName "ShuffleOFX"
@@ -1265,6 +1266,7 @@ ShufflePlugin::setupAndProcessMultiPlane(MultiPlaneShufflerBase & processor, con
     }
     
     
+    int nDstComponents = getNComponents(dstComponents);
     
     std::list<std::string> componentsA = _srcClipA->getComponentsPresent();
     std::list<std::string> componentsB = _srcClipB->getComponentsPresent();
@@ -1274,10 +1276,10 @@ ShufflePlugin::setupAndProcessMultiPlane(MultiPlaneShufflerBase & processor, con
     InputImagesHolder_RAII imagesHolder;
     OFX::BitDepthEnum srcBitDepth = eBitDepthNone;
     
-    std::map<std::string,OFX::Image*> fetchedPlanes;
+    std::map<OFX::Clip*,std::map<std::string,OFX::Image*> > fetchedPlanes;
     
     std::vector<InputPlaneChannel> planes;
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < nDstComponents; ++i) {
         
         InputPlaneChannel p;
         OFX::Clip* clip = 0;
@@ -1291,15 +1293,23 @@ ShufflePlugin::setupAndProcessMultiPlane(MultiPlaneShufflerBase & processor, con
         } else if (ofxComp == kParamOutputOption1) {
             p.fillZero = false;
         } else {
-            std::map<std::string,OFX::Image*>::iterator foundPlane = fetchedPlanes.find(plane);
-            if (foundPlane == fetchedPlanes.end()) {
+            std::map<OFX::Clip*,std::map<std::string,OFX::Image*> >::iterator foundClip = fetchedPlanes.find(clip);
+            if (foundClip == fetchedPlanes.end()) {
                 p.img = clip->fetchImagePlane(args.time, args.renderView, plane.c_str());
                 if (p.img) {
-                    fetchedPlanes.insert(std::make_pair(plane, p.img));
+                    std::map<std::string,OFX::Image*> planes;
+                    planes.insert(std::make_pair(plane, p.img));
+                    fetchedPlanes.insert(std::make_pair(clip, planes));
                     imagesHolder.appendImage(p.img);
                 }
             } else {
-                p.img = foundPlane->second;
+                std::map<std::string,OFX::Image*>::iterator foundPlane = foundClip->second.find(plane);
+                if (foundPlane == foundClip->second.end()) {
+                    foundClip->second.insert(std::make_pair(plane, p.img));
+                } else {
+                    p.img = foundPlane->second;
+                }
+
             }
         }
         
