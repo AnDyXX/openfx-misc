@@ -132,7 +132,7 @@ public:
         }
 
         _maskClip = fetchClip("Mask");
-        assert(!_maskClip || _maskClip->getPixelComponents() == OFX::ePixelComponentAlpha);
+		assert(!_maskClip || _maskClip->getPixelComponents() == OFX::ePixelComponentAlpha || _maskClip->getPixelComponents() == OFX::ePixelComponentRGBA);
         _which = fetchDoubleParam(getContext() == OFX::eContextTransition ? kOfxImageEffectTransitionParamName : kParamWhich);
         assert(_which);
         _maskInvert = fetchBooleanParam(kParamMaskInvert);
