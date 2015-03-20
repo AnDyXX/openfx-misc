@@ -1795,8 +1795,10 @@ void ShufflePluginFactory::describe(OFX::ImageEffectDescriptor &desc)
     
 #ifdef OFX_EXTENSIONS_NUKE
     gIsMultiPlanar = OFX::getImageEffectHostDescription()->isMultiPlanar;
+#ifdef OFX_EXTENSIONS_NATRON
     gSupportsDynamicChoices = OFX::getImageEffectHostDescription()->supportsDynamicChoices;
-    if (gIsMultiPlanar && gSupportsDynamicChoices && kEnableMultiPlanar) {
+#endif
+	if (gIsMultiPlanar && gSupportsDynamicChoices && kEnableMultiPlanar) {
         // This enables fetching different planes from the input.
         // Generally the user will read a multi-layered EXR file in the Reader node and then use the shuffle
         // to redirect the plane's channels into RGBA color plane.
