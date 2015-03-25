@@ -547,9 +547,9 @@ public:
         _bgClip = fetchClip(kClipBg);
         assert(_bgClip && (_bgClip->getPixelComponents() == ePixelComponentRGB || _bgClip->getPixelComponents() == ePixelComponentRGBA));
         _inMaskClip = fetchClip(kClipInsideMask);;
-        assert(_inMaskClip && _inMaskClip->getPixelComponents() == ePixelComponentAlpha);
+		assert(_inMaskClip && (_inMaskClip->getPixelComponents() == ePixelComponentAlpha || _inMaskClip->getPixelComponents() == ePixelComponentRGBA));
         _outMaskClip = fetchClip(kClipOutsidemask);;
-        assert(_outMaskClip && _outMaskClip->getPixelComponents() == ePixelComponentAlpha);
+		assert(_outMaskClip && (_outMaskClip->getPixelComponents() == ePixelComponentAlpha || _outMaskClip->getPixelComponents() == ePixelComponentRGBA));
         _keyColor = fetchRGBParam(kParamKeyColor);
         _keyerMode = fetchChoiceParam(kParamKeyerMode);
         _softnessLower = fetchDoubleParam(kParamSoftnessLower);
