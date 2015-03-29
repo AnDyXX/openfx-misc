@@ -922,7 +922,9 @@ void TrackerPMPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc,
         OFX::Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamTrackingCenterPoint);
         param->setLabel(kParamTrackingCenterPointLabel);
         param->setHint(kParamTrackingCenterPointHint);
+#ifdef OFX_EXTENSIONS_NATRON
         param->setInstanceSpecific(true);
+#endif
         param->setDoubleType(eDoubleTypeXYAbsolute);
         param->setDefaultCoordinateSystem(eCoordinatesNormalised);
         param->setDefault(0.5, 0.5);
@@ -939,7 +941,9 @@ void TrackerPMPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc,
         OFX::Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamTrackingOffset);
         param->setLabel(kParamTrackingOffsetLabel);
         param->setHint(kParamTrackingOffsetHint);
+#ifdef OFX_EXTENSIONS_NATRON
         param->setInstanceSpecific(true);
+#endif
         param->setDoubleType(eDoubleTypeXYAbsolute);
         param->setDefaultCoordinateSystem(eCoordinatesCanonical);
         param->setDefault(0, 0);
