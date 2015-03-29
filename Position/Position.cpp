@@ -124,9 +124,7 @@ public:
     , _translate(0)
     {
         _dstClip = fetchClip(kOfxImageEffectOutputClipName);
-        assert(_dstClip && (_dstClip->getPixelComponents() == ePixelComponentAlpha || _dstClip->getPixelComponents() == ePixelComponentRGB || _dstClip->getPixelComponents() == ePixelComponentRGBA));
         _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
-        assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentAlpha || _srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
         _translate = fetchDouble2DParam(kParamTranslate);
         assert(_translate);
     }
@@ -174,6 +172,7 @@ PositionPlugin::render(const OFX::RenderArguments &args)
     OFX::BitDepthEnum dstBitDepth;
     int dstRowBytes;
     getImageData(dst.get(), &dstPixelData, &dstBounds, &dstComponents, &dstBitDepth, &dstRowBytes);
+    int dstPixelComponentCount = dst->getPixelComponentCount();
 
     std::auto_ptr<const OFX::Image> src((_srcClip && _srcClip->isConnected()) ?
                                         _srcClip->fetchImage(args.time) : 0);
@@ -196,6 +195,7 @@ PositionPlugin::render(const OFX::RenderArguments &args)
     OFX::BitDepthEnum srcBitDepth;
     int srcRowBytes;
     getImageData(src.get(), &srcPixelData, &srcBounds, &srcPixelComponents, &srcBitDepth, &srcRowBytes);
+    int srcPixelComponentCount = src->getPixelComponentCount();
 
     // translate srcBounds
     const double time = args.time;
@@ -218,7 +218,7 @@ PositionPlugin::render(const OFX::RenderArguments &args)
     srcBounds.y1 += t_pixel.y;
     srcBounds.y2 += t_pixel.y;
 
-    copyPixels(*this, args.renderWindow, srcPixelData, srcBounds, srcPixelComponents, srcBitDepth, srcRowBytes, dstPixelData, dstBounds, dstComponents, dstBitDepth, dstRowBytes);
+    copyPixels(*this, args.renderWindow, srcPixelData, srcBounds, srcPixelComponents, srcPixelComponentCount, srcBitDepth, srcRowBytes, dstPixelData, dstBounds, dstComponents, dstPixelComponentCount, dstBitDepth, dstRowBytes);
 }
 
 // override the rod call
@@ -357,6 +357,10 @@ void PositionPluginFactory::describe(OFX::ImageEffectDescriptor &desc)
     desc.setRenderThreadSafety(kRenderThreadSafety);
 
     desc.setOverlayInteractDescriptor(new PositionOverlayDescriptor<PositionInteractParam>);
+#ifdef OFX_EXTENSIONS_NUKE
+    // ask the host to render all planes
+    desc.setPassThroughForNotProcessedPlanes(ePassThroughLevelRenderAllRequestedPlanes);
+#endif
 }
 
 void PositionPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::ContextEnum /*context*/)
@@ -368,11 +372,9 @@ void PositionPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, 
     srcClip->addSupportedComponent(ePixelComponentRGBA);
     srcClip->addSupportedComponent(ePixelComponentRGB);
     srcClip->addSupportedComponent(ePixelComponentAlpha);
-#ifdef OFX_EXTENSIONS_NUKE
-    //srcClip->addSupportedComponent(ePixelComponentMotionVectors);
-    //srcClip->addSupportedComponent(ePixelComponentStereoDisparity);
+#ifdef OFX_EXTENSIONS_NATRON
+    srcClip->addSupportedComponent(ePixelComponentXY);
 #endif
-    srcClip->addSupportedComponent(ePixelComponentCustom);
     srcClip->setTemporalClipAccess(false);
     srcClip->setSupportsTiles(kSupportsTiles);
     srcClip->setIsMask(false);
@@ -383,11 +385,9 @@ void PositionPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, 
     dstClip->addSupportedComponent(ePixelComponentRGBA);
     dstClip->addSupportedComponent(ePixelComponentRGB);
     dstClip->addSupportedComponent(ePixelComponentAlpha);
-#ifdef OFX_EXTENSIONS_NUKE
-    //dstClip->addSupportedComponent(ePixelComponentMotionVectors); // crashes Nuke
-    //dstClip->addSupportedComponent(ePixelComponentStereoDisparity);
+#ifdef OFX_EXTENSIONS_NATRON
+    dstClip->addSupportedComponent(ePixelComponentXY);
 #endif
-    dstClip->addSupportedComponent(ePixelComponentCustom);
     dstClip->setSupportsTiles(kSupportsTiles);
 
     // make some pages and to things in

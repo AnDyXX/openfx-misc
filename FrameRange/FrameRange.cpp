@@ -88,9 +88,7 @@ public:
     , _frameRange(0)
     {
         _dstClip = fetchClip(kOfxImageEffectOutputClipName);
-        assert(_dstClip && (_dstClip->getPixelComponents() == ePixelComponentAlpha || _dstClip->getPixelComponents() == ePixelComponentRGB || _dstClip->getPixelComponents() == ePixelComponentRGBA));
         _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
-        assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentAlpha || _srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
         _frameRange = fetchInt2DParam(kParamFrameRange);
         assert(_frameRange);
     }
@@ -225,6 +223,8 @@ void FrameRangePluginFactory::describe(OFX::ImageEffectDescriptor &desc)
     // Enable transform by the host.
     // It is only possible for transforms which can be represented as a 3x3 matrix.
     desc.setCanTransform(true);
+    // ask the host to render all planes
+    desc.setPassThroughForNotProcessedPlanes(ePassThroughLevelRenderAllRequestedPlanes);
 #endif
 }
 
@@ -237,12 +237,12 @@ void FrameRangePluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc
     srcClip->addSupportedComponent(ePixelComponentRGBA);
     srcClip->addSupportedComponent(ePixelComponentRGB);
     srcClip->addSupportedComponent(ePixelComponentAlpha);
+#ifdef OFX_EXTENSIONS_NATRON
+    srcClip->addSupportedComponent(ePixelComponentXY);
+#endif
 #ifdef OFX_EXTENSIONS_NUKE
-    //srcClip->addSupportedComponent(ePixelComponentMotionVectors);
-    //srcClip->addSupportedComponent(ePixelComponentStereoDisparity);
     srcClip->setCanTransform(true);
 #endif
-    srcClip->addSupportedComponent(ePixelComponentCustom);
     srcClip->setTemporalClipAccess(false);
     srcClip->setSupportsTiles(kSupportsTiles);
     srcClip->setIsMask(false);
@@ -253,11 +253,9 @@ void FrameRangePluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc
     dstClip->addSupportedComponent(ePixelComponentRGBA);
     dstClip->addSupportedComponent(ePixelComponentRGB);
     dstClip->addSupportedComponent(ePixelComponentAlpha);
-#ifdef OFX_EXTENSIONS_NUKE
-    //dstClip->addSupportedComponent(ePixelComponentMotionVectors); // crashes Nuke
-    //dstClip->addSupportedComponent(ePixelComponentStereoDisparity);
+#ifdef OFX_EXTENSIONS_NATRON
+    dstClip->addSupportedComponent(ePixelComponentXY);
 #endif
-    dstClip->addSupportedComponent(ePixelComponentCustom);
     dstClip->setSupportsTiles(kSupportsTiles);
     
     // make some pages and to things in 
