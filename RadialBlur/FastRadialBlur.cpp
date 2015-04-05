@@ -1,12 +1,12 @@
 /*
-AX Spherise plugin.
+AX Radial blur plugin.
 
 Copyright (C) 2015 AnDyX
 
 
 */
 
-#include "Spherise.h"
+#include "FastRadialBlur.h"
 
 #include <cmath>
 #include <cstring>
@@ -18,13 +18,12 @@ Copyright (C) 2015 AnDyX
 #include "ofxsMaskMix.h"
 #include "ofxsMacros.h"
 
-#define kPluginName "SpheriseAX"
-#define kPluginGrouping "Transform"
-#define kPluginDescription "Make spherise/unspherise around choosen point."
-#define kPluginIdentifier "org.andyx.SpherisePlugin"
-#define kPluginVersionMajor 1 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
-#define kPluginVersionMinor 3 // Increment this when you have fixed a bug or made it faster.
-
+#define kPluginName "FastRadialBlurAX"
+#define kPluginGrouping "Blur"
+#define kPluginDescription "Fast radial blur."
+#define kPluginIdentifier "org.andyx.FastRadialBlurPlugin"
+#define kPluginVersionMajor 0 // Incrementing this number means that you have broken backwards compatibility of the plug-in.
+#define kPluginVersionMinor 1 // Increment this when you have fixed a bug or made it faster.
 
 #define kSupportsTiles 0
 #define kSupportsMultiResolution 1
@@ -35,182 +34,61 @@ Copyright (C) 2015 AnDyX
 
 #define kParamCenterPoint "centerPoint"
 #define kParamCenterPointLabel "Center Point"
-#define kParamSize "size"
-#define kParamSizeLabel "Size"
-#define kParamSizeHint "Size of effect"
-#define kParamAmount "amount"
-#define kParamAmountLabel "Amount"
-#define kParamAmountHint "Amount of effect"
+
 #define kParamUsePx "usePx"
 #define kParamUsePxLabel "Center Point Uses px"
 #define kParamusePxHint "Center Point Uses px instead of "
 
 using namespace OFX;
 
-//base class of Spherise plugin
-class SpheriseProcessorBase : public OFX::ImageProcessor
+//base class of RadialBlurProcessor plugin
+class FastRadialBlurProcessorBase
 {
 protected:
-	const OFX::Image *_srcImg;
-	double amount;
-	int size;
-	int centerX;
-	int centerY;
-public:
-	SpheriseProcessorBase(OFX::ImageEffect &instance)
-		: OFX::ImageProcessor(instance)
-		, _srcImg(0)
-	{
-		}
-
-	void setSrcImg(const OFX::Image *v) { _srcImg = v; }
-	void setValues(int _centerX, int _centerY, int _size, double _amount){
-		amount = _amount;
-		size = _size;
-		centerX = _centerX;
-		centerY = _centerY;
-	}
-
-	void calculatePoint(double _x, double _y, int& outX, int& outY){
-		double dX = (_x - (double)centerX);
-		double dY = (_y - (double)centerY);
-
-		double len = sqrt((dX*dX) + (dY*dY));
-
-		//make it 0-1 like premult
-		double temp = len / (double)size;
-
-		//calculate new size
-		len = pow(temp, amount) / temp;
-
-		dX = dX * len;
-		dY = dY * len;
-
-		outX = int(centerX + dX);
-		outY = int(centerY + dY);
-	}
-
-	void getXBoundaries(int currentY, int& minX, int& maxX){
-		minX = -1;
-		maxX = -1;
-
-		if (std::abs(currentY - centerY) <= size){
-			double lenY = (double)(std::abs(currentY - centerY));
-			double len2 = ((double)size * (double)size) - (lenY * lenY);
-			double len = sqrt(len2);
-
-			minX = static_cast<int>(centerX - len);
-			maxX = static_cast<int>(centerX + len);
-		}
-	}
-};
-
-
-// Spherise plugin processor
-
-template <class PIX, int nComponents, int maxValue>
-class SpheriseProcessor : public SpheriseProcessorBase
-{
-public:
-	SpheriseProcessor(OFX::ImageEffect &instance)
-		: SpheriseProcessorBase(instance)
-	{
-	}
-
-private:
-
-	void multiThreadProcessImages(OfxRectI procWindow)
-	{
-		if (nComponents == 1) {
-			return process<false, true>(procWindow);
-		}
-		else if (nComponents == 3) {
-			return process<true, false>(procWindow);
-		}
-		else if (nComponents == 4) {
-			return process<true, true >(procWindow);
-		}
-	}
-
-	template<bool processRGB, bool processA>
-	void process(const OfxRectI& procWindow)
-	{
-		assert(nComponents == 1 || nComponents == 3 || nComponents == 4);
-		assert(_dstImg);
-
-		int sizeOfComponent = nComponents * sizeof(PIX);
-
-		for (int y = procWindow.y1; y < procWindow.y2; y++) {
-			if (_effect.abort()) {
-				break;
-			}
-
-			PIX *dstPix = (PIX *)_dstImg->getPixelAddress(procWindow.x1, y);
-
-			//raw values from pixel in 0-1
-			float unpPix[4];
-			int minX;
-			int maxX;
-			int outX;
-			int outY;
-
-			getXBoundaries(y, minX, maxX);
-
-			for (int x = procWindow.x1; x < procWindow.x2; x++) {
-				PIX *srcPix = 0;
-
-				if (x >= minX && x <= maxX){
-					unpPix[0] = 0.0;
-					unpPix[1] = 0.0;
-
-					calculatePoint(x, y, outX, outY);
-					//get src pixel
-					srcPix = (PIX *)(_srcImg ? _srcImg->getPixelAddress(outX, outY) : 0);
-					//normalise values to 0-1
-					//ofxsUnPremult<PIX, nComponents, maxValue>(srcPix, unpPix, true, 0);
-				}
-				else{
-					//get src pixel
-					srcPix = (PIX *)(_srcImg ? _srcImg->getPixelAddress(x, y) : 0);
-					//normalise values to 0-1
-					//ofxsUnPremult<PIX, nComponents, maxValue>(srcPix, unpPix, true, 0);
-				}
-
-
-				//ofxsPremultMaskMixPix<PIX, nComponents, maxValue, false>(unpPix, false, 0, x, y, srcPix, false, 0, 1.0f, false, dstPix);
-
-				if (srcPix == 0){
-					memset(dstPix, 0, sizeOfComponent);
-				}
-				else{
-					memcpy(dstPix, srcPix, sizeOfComponent);
-				}
-
-				// increment the dst pixel
-				dstPix += nComponents;
-			}
-		}
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////
-/** @brief The plugin that does our work */
-class SpherisePlugin : public OFX::ImageEffect
-{
-protected:
-	OFX::DoubleParam  *_size;
-	OFX::DoubleParam  *_amount;
-	OFX::BooleanParam* _CenterUsePx;
+	OFX::ImageEffect &_effect;      /**< @brief effect to render with */
+	OFX::Image       *_dstImg;        /**< @brief image to process into */
+	const OFX::Image       *_srcImg;        /**< @brief image to process into */
 public:
 	/** @brief ctor */
-	SpherisePlugin(OfxImageEffectHandle handle)
-		: ImageEffect(handle)
+	FastRadialBlurProcessorBase(OFX::ImageEffect &effect)
+		: _effect(effect)
+		, _dstImg(0)
+		, _srcImg(0)
+	{
+	}
+
+	/** @brief set the destination image */
+	void setDstImg(OFX::Image *v) { _dstImg = v; }
+	void setSrcImg(const OFX::Image *v) { _srcImg = v; }
+
+};
+
+// RadialBlurProcessor plugin processor
+template <class PIX, int nComponents, int maxValue>
+class FastRadialBlurProcessor : public FastRadialBlurProcessorBase
+{
+public:
+	FastRadialBlurProcessor(OFX::ImageEffect &instance)
+		: FastRadialBlurProcessorBase(instance)
+	{
+	}
+
+
+};
+
+//plugin itself
+////////////////////////////////////////////////////////////////////////////////
+/** @brief The plugin that does our work */
+class FastRadialBlurPlugin : public OFX::ImageEffect
+{
+private:
+	OFX::BooleanParam* _CenterUsePx;
+	OFX::Double2DParam* _centerPoint;
+public:
+	/** @brief ctor */
+	FastRadialBlurPlugin(OfxImageEffectHandle handle) : ImageEffect(handle)
 		, _dstClip(0)
 		, _srcClip(0)
-		, _centerPoint(0)
-		, _size(0)
-		, _amount(0)
-
 	{
 		_dstClip = fetchClip(kOfxImageEffectOutputClipName);
 		assert(_dstClip && (_dstClip->getPixelComponents() == ePixelComponentRGB || _dstClip->getPixelComponents() == ePixelComponentRGBA));
@@ -218,34 +96,29 @@ public:
 		assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
 
 		// NON-GENERIC
-		_centerPoint = fetchDouble2DParam(kParamCenterPoint);
-		_size = fetchDoubleParam(kParamSize);
-		_amount = fetchDoubleParam(kParamAmount);
 		_CenterUsePx = fetchBooleanParam(kParamUsePx);
+		_centerPoint = fetchDouble2DParam(kParamCenterPoint);
 	}
 private:
 	/* Override the render */
 	virtual void render(const OFX::RenderArguments &args) OVERRIDE FINAL;
 
-	virtual bool isIdentity(const IsIdentityArguments &args, Clip * &identityClip, double &identityTime) OVERRIDE FINAL;
+	virtual bool isIdentity(const IsIdentityArguments &args, Clip * &identityClip, double &identityTime) OVERRIDE FINAL{ return true; }
 
 	virtual void changedParam(const OFX::InstanceChangedArgs &args, const std::string &paramName) OVERRIDE FINAL;
 
 	/* set up and run a processor */
-	void setupAndProcess(SpheriseProcessorBase & processor, const OFX::RenderArguments &args);
+	void setupAndProcess(FastRadialBlurProcessorBase & processor, const OFX::RenderArguments &args);
 
 private:
 	// do not need to delete these, the ImageEffect is managing them for us
 	OFX::Clip *_dstClip;
 	OFX::Clip *_srcClip;
-
-	// NON-GENERIC
-	OFX::Double2DParam* _centerPoint;
 };
 
 
 void
-SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::RenderArguments &args){
+FastRadialBlurPlugin::setupAndProcess(FastRadialBlurProcessorBase & processor, const OFX::RenderArguments &args){
 	std::auto_ptr<OFX::Image> dst(_dstClip->fetchImage(args.time));
 	if (!dst.get()) {
 		OFX::throwSuiteStatusException(kOfxStatFailed);
@@ -280,31 +153,20 @@ SpherisePlugin::setupAndProcess(SpheriseProcessorBase & processor, const OFX::Re
 
 	processor.setDstImg(dst.get());
 	processor.setSrcImg(src.get());
-	processor.setRenderWindow(args.renderWindow);
 
-	double amount = _amount->getValueAtTime(args.time);
-	double sizeDbl = _size->getValueAtTime(args.time);
 
-	bool centerUsePx;
-	_CenterUsePx->getValueAtTime(args.time, centerUsePx);
+	//processor.process();
+}
 
-	OfxPointD center;
-	_centerPoint->getValueAtTime(args.time, center.x, center.y);
-
-	OfxRectI bounds = dst->getRegionOfDefinition();
-
-	int size = int((double)bounds.x2 * sizeDbl);
-	int centerX = int((centerUsePx ? dst->getRenderScale().x : (double)bounds.x2) * center.x);
-	int centerY = int((centerUsePx ? dst->getRenderScale().y : (double)bounds.y2) * center.y);
-
-	processor.setValues(centerX, centerY, size, amount);
-	processor.process();
+void
+FastRadialBlurPlugin::changedParam(const OFX::InstanceChangedArgs &args, const std::string &paramName)
+{
 
 }
 
 // the overridden render function
 void
-SpherisePlugin::render(const OFX::RenderArguments &args)
+FastRadialBlurPlugin::render(const OFX::RenderArguments &args)
 {
 	// instantiate the render code based on the pixel depth of the dst clip
 	OFX::BitDepthEnum       dstBitDepth = _dstClip->getPixelDepth();
@@ -317,17 +179,17 @@ SpherisePlugin::render(const OFX::RenderArguments &args)
 	if (dstComponents == OFX::ePixelComponentAlpha) {
 		switch (dstBitDepth) {
 		case OFX::eBitDepthUByte: {
-									  SpheriseProcessor<unsigned char, 1, 255> fred(*this);
+									  FastRadialBlurProcessor<unsigned char, 1, 255> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
 		case OFX::eBitDepthUShort: {
-									   SpheriseProcessor<unsigned short, 1, 65535> fred(*this);
+									   FastRadialBlurProcessor<unsigned short, 1, 65535> fred(*this);
 									   setupAndProcess(fred, args);
 									   break;
 		}
 		case OFX::eBitDepthFloat: {
-									  SpheriseProcessor<float, 1, 1> fred(*this);
+									  FastRadialBlurProcessor<float, 1, 1> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
@@ -338,17 +200,17 @@ SpherisePlugin::render(const OFX::RenderArguments &args)
 	else if (dstComponents == OFX::ePixelComponentRGBA) {
 		switch (dstBitDepth) {
 		case OFX::eBitDepthUByte: {
-									  SpheriseProcessor<unsigned char, 4, 255> fred(*this);
+									  FastRadialBlurProcessor<unsigned char, 4, 255> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
 		case OFX::eBitDepthUShort: {
-									   SpheriseProcessor<unsigned short, 4, 65535> fred(*this);
+									   FastRadialBlurProcessor<unsigned short, 4, 65535> fred(*this);
 									   setupAndProcess(fred, args);
 									   break;
 		}
 		case OFX::eBitDepthFloat: {
-									  SpheriseProcessor<float, 4, 1> fred(*this);
+									  FastRadialBlurProcessor<float, 4, 1> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
@@ -360,17 +222,17 @@ SpherisePlugin::render(const OFX::RenderArguments &args)
 		assert(dstComponents == OFX::ePixelComponentRGB);
 		switch (dstBitDepth) {
 		case OFX::eBitDepthUByte: {
-									  SpheriseProcessor<unsigned char, 3, 255> fred(*this);
+									  FastRadialBlurProcessor<unsigned char, 3, 255> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
 		case OFX::eBitDepthUShort: {
-									   SpheriseProcessor<unsigned short, 3, 65535> fred(*this);
+									   FastRadialBlurProcessor<unsigned short, 3, 65535> fred(*this);
 									   setupAndProcess(fred, args);
 									   break;
 		}
 		case OFX::eBitDepthFloat: {
-									  SpheriseProcessor<float, 3, 1> fred(*this);
+									  FastRadialBlurProcessor<float, 3, 1> fred(*this);
 									  setupAndProcess(fred, args);
 									  break;
 		}
@@ -380,30 +242,10 @@ SpherisePlugin::render(const OFX::RenderArguments &args)
 	}
 }
 
-bool
-SpherisePlugin::isIdentity(const IsIdentityArguments &/*args*/, Clip * &identityClip, double & identityTime)
-{
-	// NON-GENERIC
-	double amount = _amount->getValueAtTime(identityTime);
-	double size = _size->getValueAtTime(identityTime);
-
-	if (amount == 0.0 || size == 0.0){
-		return true;
-	}
-
-	return false;
-}
-
-void
-SpherisePlugin::changedParam(const OFX::InstanceChangedArgs &args, const std::string &paramName)
-{
-
-}
-
 //factory
-mDeclarePluginFactory(SpheriseFactory, {}, {});
+mDeclarePluginFactory(FastRadialBlurFactory, {}, {});
 
-void SpheriseFactory::describe(OFX::ImageEffectDescriptor &desc)
+void FastRadialBlurFactory::describe(OFX::ImageEffectDescriptor &desc)
 {
 	// basic labels
 	desc.setLabel(kPluginName);
@@ -430,7 +272,7 @@ void SpheriseFactory::describe(OFX::ImageEffectDescriptor &desc)
 
 }
 
-void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::ContextEnum context)
+void FastRadialBlurFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::ContextEnum context)
 {
 	// Source clip only in the filter context
 	// create the mandated source clip
@@ -449,6 +291,7 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 
 	// make some pages and to things in
 	PageParamDescriptor *page = desc.definePageParam("Controls");
+
 	// center point
 	{
 		Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamCenterPoint);
@@ -456,6 +299,8 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 		param->setDoubleType(eDoubleTypeXYAbsolute);
 		param->setDefault(0, 0);
 		param->setIncrement(0.1);
+		param->setUseHostNativeOverlayHandle(true);
+		param->setUseHostOverlayHandle(true);
 		if (page) {
 			page->addChild(*param);
 		}
@@ -474,47 +319,17 @@ void SpheriseFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX::C
 		}
 	}
 
-	// Size
-	{
-		DoubleParamDescriptor *param = desc.defineDoubleParam(kParamSize);
-		param->setLabel(kParamSizeLabel);
-		param->setHint(kParamSizeHint);
-		param->setDefault(0.005);
-		param->setRange(0, 1);
-		param->setIncrement(0.01);
-		param->setDisplayRange(0, 0.2);
-		param->setAnimates(true); // can animate
-		param->setDoubleType(eDoubleTypeScale);
-		if (page) {
-			page->addChild(*param);
-		}
-	}
 
-	// amount
-	{
-		DoubleParamDescriptor *param = desc.defineDoubleParam(kParamAmount);
-		param->setLabel(kParamAmountLabel);
-		param->setHint(kParamAmountHint);
-		param->setDefault(0.2);
-		param->setRange(0, 10);
-		param->setIncrement(0.91);
-		param->setDisplayRange(0, 1);
-		param->setAnimates(true); // can animate
-		param->setDoubleType(eDoubleTypeScale);
-		if (page) {
-			page->addChild(*param);
-		}
-	}
 }
 
-OFX::ImageEffect* SpheriseFactory::createInstance(OfxImageEffectHandle handle, OFX::ContextEnum /*context*/)
+OFX::ImageEffect* FastRadialBlurFactory::createInstance(OfxImageEffectHandle handle, OFX::ContextEnum /*context*/)
 {
-	return new SpherisePlugin(handle);
+	return new FastRadialBlurPlugin(handle);
 }
 
 //register plugin
-void getSpherisePluginID(OFX::PluginFactoryArray &ids)
+void getFastRadialBlurID(OFX::PluginFactoryArray &ids)
 {
-	static SpheriseFactory p(kPluginIdentifier, kPluginVersionMajor, kPluginVersionMinor);
+	static FastRadialBlurFactory p(kPluginIdentifier, kPluginVersionMajor, kPluginVersionMinor);
 	ids.push_back(&p);
 }

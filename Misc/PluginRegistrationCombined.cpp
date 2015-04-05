@@ -54,73 +54,77 @@
 #include "VectorToColor.h"
 #include "TestPosition.h"
 #include "Spherise.h"
+//#include "FastRadialBlur.h"
+#include "IntelGodRays.h"
 
 namespace OFX
 {
-    namespace Plugin
-    {
-        void getPluginIDs(OFX::PluginFactoryArray &ids)
-        {
-            getAddPluginID(ids);
-            getAdjustRoDPluginID(ids);
-            //getAnaglyphPluginID(ids);
-            getAppendClipPluginID(ids);
-            getCheckerBoardPluginID(ids);
-            getChromaKeyerPluginID(ids);
-            getClampPluginID(ids);
-            getClipTestPluginID(ids);
-            getColorCorrectPluginID(ids);
-            getColorMatrixPluginID(ids);
-            getColorTransformPluginIDs(ids);
-            getConstantPluginID(ids);
-            getCopyRectanglePluginID(ids);
-            getCornerPinPluginIDs(ids);
-            getCropPluginID(ids);
-            getDeinterlacePluginID(ids);
-            getDifferencePluginID(ids);
-            getDissolvePluginID(ids);
-            getFrameBlendPluginID(ids);
-            getFrameHoldPluginID(ids);
-            getFrameRangePluginID(ids);
-            getGammaPluginID(ids);
-            getGodRaysPluginID(ids);
-            getGradePluginID(ids);
-            getHSVToolPluginID(ids);
-            getDistortionPluginIDs(ids);
-            getImageStatisticsPluginID(ids);
-            getInvertPluginID(ids);
-            //getJoinViewsPluginID(ids);
-            getKeyerPluginID(ids);
-            getMergePluginID(ids);
-            getMirrorPluginID(ids);
-            //getMixViewsPluginID(ids);
-            getMultiplyPluginID(ids);
-            getNoisePluginID(ids);
-            //getNoOpPluginID(ids);
-            //getOneViewPluginID(ids);
-            getPositionPluginID(ids);
-            getPremultPluginIDs(ids);
-            getRadialPluginID(ids);
-            getRampPluginID(ids);
+	namespace Plugin
+	{
+		void getPluginIDs(OFX::PluginFactoryArray &ids)
+		{
+			getAddPluginID(ids);
+			getAdjustRoDPluginID(ids);
+			//getAnaglyphPluginID(ids);
+			getAppendClipPluginID(ids);
+			getCheckerBoardPluginID(ids);
+			getChromaKeyerPluginID(ids);
+			getClampPluginID(ids);
+			getClipTestPluginID(ids);
+			getColorCorrectPluginID(ids);
+			getColorMatrixPluginID(ids);
+			getColorTransformPluginIDs(ids);
+			getConstantPluginID(ids);
+			getCopyRectanglePluginID(ids);
+			getCornerPinPluginIDs(ids);
+			getCropPluginID(ids);
+			getDeinterlacePluginID(ids);
+			getDifferencePluginID(ids);
+			getDissolvePluginID(ids);
+			getFrameBlendPluginID(ids);
+			getFrameHoldPluginID(ids);
+			getFrameRangePluginID(ids);
+			getGammaPluginID(ids);
+			getGodRaysPluginID(ids);
+			getGradePluginID(ids);
+			getHSVToolPluginID(ids);
+			getDistortionPluginIDs(ids);
+			getImageStatisticsPluginID(ids);
+			getInvertPluginID(ids);
+			//getJoinViewsPluginID(ids);
+			getKeyerPluginID(ids);
+			getMergePluginID(ids);
+			getMirrorPluginID(ids);
+			//getMixViewsPluginID(ids);
+			getMultiplyPluginID(ids);
+			getNoisePluginID(ids);
+			//getNoOpPluginID(ids);
+			//getOneViewPluginID(ids);
+			getPositionPluginID(ids);
+			getPremultPluginIDs(ids);
+			getRadialPluginID(ids);
+			getRampPluginID(ids);
 #ifdef DEBUG
-            getReConvergePluginID(ids);
+			getReConvergePluginID(ids);
 #endif
-            getRectanglePluginID(ids);
-            getRetimePluginID(ids);
-            //getColorLookupPluginID(ids);
-            getRotoPluginID(ids);
-            getSaturationPluginID(ids);
-            getShufflePluginID(ids);
-            //getSideBySidePluginID(ids);
-            getSwitchPluginID(ids);
-            getTimeOffsetPluginID(ids);
-            getTrackerPMPluginID(ids);
-            getTransformPluginIDs(ids);
-            getVectorToColorPluginID(ids);
+			getRectanglePluginID(ids);
+			getRetimePluginID(ids);
+			//getColorLookupPluginID(ids);
+			getRotoPluginID(ids);
+			getSaturationPluginID(ids);
+			getShufflePluginID(ids);
+			//getSideBySidePluginID(ids);
+			getSwitchPluginID(ids);
+			getTimeOffsetPluginID(ids);
+			getTrackerPMPluginID(ids);
+			getTransformPluginIDs(ids);
+			getVectorToColorPluginID(ids);
 
 			//getTestPositionPluginID(ids);
 
 			getSpherisePluginID(ids);
-        }
-    }
+			//getFastRadialBlurID(ids);
+			getIntelGodRaysID(ids);
+		}
+	}
 }
