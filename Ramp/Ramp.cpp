@@ -145,6 +145,9 @@
 #define kParamTypeOptionSmooth "Smooth"
 #define kParamTypeOptionSmoothHint "Traditional smoothstep ramp."
 
+//RGBA checkbox are host side if true
+static bool gHostHasNativeRGBACheckbox;
+
 enum RampTypeEnum
 {
     eRampTypeLinear = 0,
@@ -545,6 +548,7 @@ public:
         _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
         assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentAlpha || _srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
         _maskClip = getContext() == OFX::eContextFilter ? NULL : fetchClip(getContext() == OFX::eContextPaint ? "Brush" : "Mask");
+<<<<<<< HEAD
 		assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha || _maskClip->getPixelComponents() == ePixelComponentRGBA);
 
         _processR = fetchBooleanParam(kParamProcessR);
@@ -553,6 +557,18 @@ public:
         _processA = fetchBooleanParam(kParamProcessA);
 
         assert(_processR && _processG && _processB && _processA);
+=======
+        assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha);
+        
+        if (!gHostHasNativeRGBACheckbox) {
+            _processR = fetchBooleanParam(kParamProcessR);
+            _processG = fetchBooleanParam(kParamProcessG);
+            _processB = fetchBooleanParam(kParamProcessB);
+            _processA = fetchBooleanParam(kParamProcessA);
+            
+            assert(_processR && _processG && _processB && _processA);
+        }
+>>>>>>> 81bd61045866842963281bfc99cad1ac90c1534e
         _point0 = fetchDouble2DParam(kParamPoint0);
         _point1 = fetchDouble2DParam(kParamPoint1);
         _color0 = fetchRGBAParam(kParamColor0);
@@ -696,13 +712,17 @@ RampPlugin::setupAndProcess(RampProcessorBase &processor, const OFX::RenderArgum
     RGBAValues color0,color1;
     _color0->getValueAtTime(args.time, color0.r, color0.g, color0.b, color0.a);
     _color1->getValueAtTime(args.time, color1.r, color1.g, color1.b, color1.a);
-
+    
     bool processR, processG, processB, processA;
-    _processR->getValue(processR);
-    _processG->getValue(processG);
-    _processB->getValue(processB);
-    _processA->getValue(processA);
-
+    if (!gHostHasNativeRGBACheckbox) {
+        _processR->getValue(processR);
+        _processG->getValue(processG);
+        _processB->getValue(processB);
+        _processA->getValue(processA);
+    } else {
+        processR = processG = processB = processA = true;
+    }
+    
     double mix;
     _mix->getValueAtTime(args.time, mix);
 
@@ -774,19 +794,21 @@ RampPlugin::isIdentity(const OFX::IsIdentityArguments &args,
         return true;
     }
 
-    bool processR;
-    bool processG;
-    bool processB;
-    bool processA;
-    _processR->getValueAtTime(args.time, processR);
-    _processG->getValueAtTime(args.time, processG);
-    _processB->getValueAtTime(args.time, processB);
-    _processA->getValueAtTime(args.time, processA);
-    if (!processR && !processG && !processB && !processA) {
-        identityClip = _srcClip;
-        return true;
+    if (!gHostHasNativeRGBACheckbox) {
+        bool processR;
+        bool processG;
+        bool processB;
+        bool processA;
+        _processR->getValueAtTime(args.time, processR);
+        _processG->getValueAtTime(args.time, processG);
+        _processB->getValueAtTime(args.time, processB);
+        _processA->getValueAtTime(args.time, processA);
+        if (!processR && !processG && !processB && !processA) {
+            identityClip = _srcClip;
+            return true;
+        }
     }
-
+    
     RGBAValues color0,color1;
     _color0->getValueAtTime(args.time, color0.r, color0.g, color0.b, color0.a);
     _color1->getValueAtTime(args.time, color1.r, color1.g, color1.b, color1.a);
@@ -804,7 +826,11 @@ RampPlugin::getClipPreferences(OFX::ClipPreferencesSetter &clipPreferences)
 {
     // set the premultiplication of _dstClip if alpha is affected and source is Opaque
     bool alpha;
-    _processA->getValue(alpha);
+    if (!gHostHasNativeRGBACheckbox) {
+        _processA->getValue(alpha);
+    } else {
+        alpha = true;
+    }
     if (alpha && _srcClip->getPreMultiplication() == eImageOpaque) {
         clipPreferences.setOutputPremultiplication(eImageUnPreMultiplied);
     }
@@ -1214,6 +1240,16 @@ void RampPluginFactory::describe(OFX::ImageEffectDescriptor &desc)
     // All other functions are usually in canonical coordinates.
     desc.setSupportsMultiResolution(kSupportsMultiResolution);
     desc.setOverlayInteractDescriptor(new RampOverlayDescriptor);
+    
+#ifdef OFX_EXTENSIONS_NATRON
+    if (OFX::getImageEffectHostDescription()->isNatron) {
+        gHostHasNativeRGBACheckbox = true;
+    } else {
+        gHostHasNativeRGBACheckbox = false;
+    }
+#else
+    gHostHasNativeRGBACheckbox = false;
+#endif
 
 }
 
@@ -1262,47 +1298,48 @@ void RampPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OFX:
 
     // make some pages and to things in
     PageParamDescriptor *page = desc.definePageParam("Controls");
-
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
-        param->setLabel(kParamProcessRLabel);
-        param->setHint(kParamProcessRHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
-        }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
-        param->setLabel(kParamProcessGLabel);
-        param->setHint(kParamProcessGHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
-        }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
-        param->setLabel(kParamProcessBLabel);
-        param->setHint(kParamProcessBHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
-        }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
-        param->setLabel(kParamProcessALabel);
-        param->setHint(kParamProcessAHint);
-        param->setDefault(true);
-        if (page) {
-            page->addChild(*param);
-        }
-    }
     
+    if (!gHostHasNativeRGBACheckbox) {
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
+            param->setLabel(kParamProcessRLabel);
+            param->setHint(kParamProcessRHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
+        }
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
+            param->setLabel(kParamProcessGLabel);
+            param->setHint(kParamProcessGHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
+        }
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
+            param->setLabel(kParamProcessBLabel);
+            param->setHint(kParamProcessBHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
+        }
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
+            param->setLabel(kParamProcessALabel);
+            param->setHint(kParamProcessAHint);
+            param->setDefault(true);
+            if (page) {
+                page->addChild(*param);
+            }
+        }
+    }
     // point0
     {
         Double2DParamDescriptor* param = desc.defineDouble2DParam(kParamPoint0);

@@ -128,6 +128,10 @@ public:
 		imgSize.x = w;
 		imgSize.y = h;
 
+		if ((std::abs(center.x) > 10000) || (std::abs(center.y) > 10000)){
+			return;
+		}
+
 		for (int ray = 0; ray < raysCount; ray++){
 			if ((ray % nThreads) == threadId){
 				EvaluateRay(ray, imgSize, blend, center, decay, weight, exposure, threshold, mergeOver ? 1 : 0);
@@ -1137,7 +1141,7 @@ void IntelGodRaysFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OF
 		param->setDefault(0.01);
 		param->setRange(0, 1.);
 		param->setIncrement(0.1);
-		param->setDisplayRange(0,0.2);
+		param->setDisplayRange(0, 0.2);
 		param->setAnimates(true); // can animate
 		param->setDoubleType(eDoubleTypePlain);
 		if (page) {

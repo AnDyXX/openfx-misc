@@ -137,6 +137,9 @@
 #define kParamExpandRoDLabel "Expand RoD"
 #define kParamExpandRoDHint "Expand the source region of definition by the shape RoD (if Source is connected and color0.a=0)."
 
+//RGBA checkbox are host side if true
+static bool gHostHasNativeRGBACheckbox;
+
 namespace {
     struct RGBAValues {
         double r,g,b,a;
@@ -482,6 +485,7 @@ public:
         _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
         assert(_srcClip && (_srcClip->getPixelComponents() == ePixelComponentAlpha || _srcClip->getPixelComponents() == ePixelComponentRGB || _srcClip->getPixelComponents() == ePixelComponentRGBA));
         _maskClip = getContext() == OFX::eContextFilter ? NULL : fetchClip(getContext() == OFX::eContextPaint ? "Brush" : "Mask");
+<<<<<<< HEAD
 		assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha || _maskClip->getPixelComponents() == ePixelComponentRGBA);
 
         _processR = fetchBooleanParam(kParamProcessR);
@@ -490,6 +494,18 @@ public:
         _processA = fetchBooleanParam(kParamProcessA);
 
         assert(_processR && _processG && _processB && _processA);
+=======
+        assert(!_maskClip || _maskClip->getPixelComponents() == ePixelComponentAlpha);
+        
+        if (!gHostHasNativeRGBACheckbox) {
+            _processR = fetchBooleanParam(kParamProcessR);
+            _processG = fetchBooleanParam(kParamProcessG);
+            _processB = fetchBooleanParam(kParamProcessB);
+            _processA = fetchBooleanParam(kParamProcessA);
+            
+            assert(_processR && _processG && _processB && _processA);
+        }
+>>>>>>> 81bd61045866842963281bfc99cad1ac90c1534e
         _btmLeft = fetchDouble2DParam(kParamRectangleInteractBtmLeft);
         _size = fetchDouble2DParam(kParamRectangleInteractSize);
         _softness = fetchDoubleParam(kParamSoftness);
@@ -630,20 +646,24 @@ RadialPlugin::setupAndProcess(RadialProcessorBase &processor, const OFX::RenderA
     _softness->getValueAtTime(args.time, softness);
     bool plinear;
     _plinear->getValueAtTime(args.time, plinear);
-
+    
     RGBAValues color0, color1;
     _color0->getValueAtTime(args.time, color0.r, color0.g, color0.b, color0.a);
     _color1->getValueAtTime(args.time, color1.r, color1.g, color1.b, color1.a);
-
+    
     bool processR, processG, processB, processA;
-    _processR->getValue(processR);
-    _processG->getValue(processG);
-    _processB->getValue(processB);
-    _processA->getValue(processA);
-
+    if (!gHostHasNativeRGBACheckbox) {
+        _processR->getValue(processR);
+        _processG->getValue(processG);
+        _processB->getValue(processB);
+        _processA->getValue(processA);
+    } else {
+        processR = processG = processB = processA = true;
+    }
+    
     double mix;
     _mix->getValueAtTime(args.time, mix);
-
+    
     processor.setValues(btmLeft, size,
                         softness, plinear,
                         color0, color1,
@@ -711,18 +731,20 @@ RadialPlugin::isIdentity(const OFX::IsIdentityArguments &args,
         identityClip = _srcClip;
         return true;
     }
-
-    bool processR;
-    bool processG;
-    bool processB;
-    bool processA;
-    _processR->getValueAtTime(args.time, processR);
-    _processG->getValueAtTime(args.time, processG);
-    _processB->getValueAtTime(args.time, processB);
-    _processA->getValueAtTime(args.time, processA);
-    if (!processR && !processG && !processB && !processA) {
-        identityClip = _srcClip;
-        return true;
+    
+    if (!gHostHasNativeRGBACheckbox) {
+        bool processR;
+        bool processG;
+        bool processB;
+        bool processA;
+        _processR->getValueAtTime(args.time, processR);
+        _processG->getValueAtTime(args.time, processG);
+        _processB->getValueAtTime(args.time, processB);
+        _processA->getValueAtTime(args.time, processA);
+        if (!processR && !processG && !processB && !processA) {
+            identityClip = _srcClip;
+            return true;
+        }
     }
 
     RGBAValues color0, color1;
@@ -742,7 +764,11 @@ RadialPlugin::getClipPreferences(OFX::ClipPreferencesSetter &clipPreferences)
 {
     // set the premultiplication of _dstClip if alpha is affected and source is Opaque
     bool alpha;
-    _processA->getValue(alpha);
+    if (!gHostHasNativeRGBACheckbox) {
+        _processA->getValue(alpha);
+    } else {
+        alpha = true;
+    }
     if (alpha && _srcClip->getPreMultiplication() == eImageOpaque) {
         clipPreferences.setOutputPremultiplication(eImageUnPreMultiplied);
     }
@@ -842,6 +868,16 @@ void RadialPluginFactory::describe(OFX::ImageEffectDescriptor &desc)
     // All other functions are usually in canonical coordinates.
     desc.setSupportsMultiResolution(kSupportsMultiResolution);
     desc.setOverlayInteractDescriptor(new RectangleOverlayDescriptor);
+    
+#ifdef OFX_EXTENSIONS_NATRON
+    if (OFX::getImageEffectHostDescription()->isNatron) {
+        gHostHasNativeRGBACheckbox = true;
+    } else {
+        gHostHasNativeRGBACheckbox = false;
+    }
+#else
+    gHostHasNativeRGBACheckbox = false;
+#endif
 }
 
 
@@ -889,44 +925,46 @@ void RadialPluginFactory::describeInContext(OFX::ImageEffectDescriptor &desc, OF
 
     // make some pages and to things in
     PageParamDescriptor *page = desc.definePageParam("Controls");
-
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
-        param->setLabel(kParamProcessRLabel);
-        param->setHint(kParamProcessRHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
+    
+    if (!gHostHasNativeRGBACheckbox) {
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
+            param->setLabel(kParamProcessRLabel);
+            param->setHint(kParamProcessRHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
         }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
-        param->setLabel(kParamProcessGLabel);
-        param->setHint(kParamProcessGHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
+            param->setLabel(kParamProcessGLabel);
+            param->setHint(kParamProcessGHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
         }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
-        param->setLabel(kParamProcessBLabel);
-        param->setHint(kParamProcessBHint);
-        param->setDefault(true);
-        param->setLayoutHint(eLayoutHintNoNewLine);
-        if (page) {
-            page->addChild(*param);
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
+            param->setLabel(kParamProcessBLabel);
+            param->setHint(kParamProcessBHint);
+            param->setDefault(true);
+            param->setLayoutHint(eLayoutHintNoNewLine);
+            if (page) {
+                page->addChild(*param);
+            }
         }
-    }
-    {
-        OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
-        param->setLabel(kParamProcessALabel);
-        param->setHint(kParamProcessAHint);
-        param->setDefault(true);
-        if (page) {
-            page->addChild(*param);
+        {
+            OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
+            param->setLabel(kParamProcessALabel);
+            param->setHint(kParamProcessAHint);
+            param->setDefault(true);
+            if (page) {
+                page->addChild(*param);
+            }
         }
     }
     
