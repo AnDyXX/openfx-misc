@@ -55,7 +55,6 @@ class CImgFilterPluginHelper : public OFX::ImageEffect
 {
 public:
 
-<<<<<<< HEAD
 	CImgFilterPluginHelper(OfxImageEffectHandle handle,
 		bool supportsTiles,
 		bool supportsMultiResolution,
@@ -87,11 +86,13 @@ public:
 		_maskClip = getContext() == OFX::eContextFilter ? NULL : fetchClip(getContext() == OFX::eContextPaint ? "Brush" : "Mask");
 		assert(!_maskClip || _maskClip->getPixelComponents() == OFX::ePixelComponentAlpha);
 
-		_processR = fetchBooleanParam(kParamProcessR);
-		_processG = fetchBooleanParam(kParamProcessG);
-		_processB = fetchBooleanParam(kParamProcessB);
-		_processA = fetchBooleanParam(kParamProcessA);
-		assert(_processR && _processG && _processB && _processA);
+		if (!gHostHasNativeRGBACheckbox) {
+			_processR = fetchBooleanParam(kParamProcessR);
+			_processG = fetchBooleanParam(kParamProcessG);
+			_processB = fetchBooleanParam(kParamProcessB);
+			_processA = fetchBooleanParam(kParamProcessA);
+			assert(_processR && _processG && _processB && _processA);
+		}
 		_premult = fetchBooleanParam(kParamPremult);
 		_premultChannel = fetchChoiceParam(kParamPremultChannel);
 		assert(_premult && _premultChannel);
@@ -126,23 +127,25 @@ public:
 					break;
 				}
 			}
-			switch (_srcClip->getPixelComponents()) {
-			case OFX::ePixelComponentAlpha:
-				_processR->setValue(false);
-				_processG->setValue(false);
-				_processB->setValue(false);
-				_processA->setValue(true);
-				break;
-			case OFX::ePixelComponentRGBA:
-			case OFX::ePixelComponentRGB:
-				// Alpha is not processed by default on RGBA images
-				_processR->setValue(true);
-				_processG->setValue(true);
-				_processB->setValue(true);
-				_processA->setValue(_defaultProcessAlphaOnRGBA);
-				break;
-			default:
-				break;
+			if (!gHostHasNativeRGBACheckbox) {
+				switch (_srcClip->getPixelComponents()) {
+				case OFX::ePixelComponentAlpha:
+					_processR->setValue(false);
+					_processG->setValue(false);
+					_processB->setValue(false);
+					_processA->setValue(true);
+					break;
+				case OFX::ePixelComponentRGBA:
+				case OFX::ePixelComponentRGB:
+					// Alpha is not processed by default on RGBA images
+					_processR->setValue(true);
+					_processG->setValue(true);
+					_processB->setValue(true);
+					_processA->setValue(_defaultProcessAlphaOnRGBA);
+					break;
+				default:
+					break;
+				}
 			}
 		}
 	}
@@ -176,6 +179,18 @@ public:
 		bool processAlpha = false,
 		bool processIsSecret = false)
 	{
+
+#ifdef OFX_EXTENSIONS_NATRON
+			if (OFX::getImageEffectHostDescription()->isNatron) {
+				gHostHasNativeRGBACheckbox = true;
+			}
+			else {
+				gHostHasNativeRGBACheckbox = false;
+			}
+#else
+			gHostHasNativeRGBACheckbox = false;
+#endif
+
 			OFX::ClipDescriptor *srcClip = desc.defineClip(kOfxImageEffectSimpleSourceClipName);
 			if (supportsRGBA) {
 				srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
@@ -219,18 +234,19 @@ public:
 			// create the params
 			OFX::PageParamDescriptor *page = desc.definePageParam("Controls");
 
-			{
-				OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
-				param->setLabel(kParamProcessRLabel);
-				param->setHint(kParamProcessRHint);
-				param->setDefault(processRGB);
-				param->setIsSecret(processIsSecret);
-				param->setLayoutHint(OFX::eLayoutHintNoNewLine);
-				if (page) {
-					page->addChild(*param);
+			if (!gHostHasNativeRGBACheckbox) {
+				{
+					OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
+					param->setLabel(kParamProcessRLabel);
+					param->setHint(kParamProcessRHint);
+					param->setDefault(processRGB);
+					param->setIsSecret(processIsSecret);
+					param->setLayoutHint(OFX::eLayoutHintNoNewLine);
+					if (page) {
+						page->addChild(*param);
+					}
 				}
-			}
-			{
+				{
 				OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
 				param->setLabel(kParamProcessGLabel);
 				param->setHint(kParamProcessGHint);
@@ -241,25 +257,26 @@ public:
 					page->addChild(*param);
 				}
 			}
-			{
-				OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
-				param->setLabel(kParamProcessBLabel);
-				param->setHint(kParamProcessBHint);
-				param->setDefault(processRGB);
-				param->setIsSecret(processIsSecret);
-				param->setLayoutHint(OFX::eLayoutHintNoNewLine);
-				if (page) {
-					page->addChild(*param);
+				{
+					OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessB);
+					param->setLabel(kParamProcessBLabel);
+					param->setHint(kParamProcessBHint);
+					param->setDefault(processRGB);
+					param->setIsSecret(processIsSecret);
+					param->setLayoutHint(OFX::eLayoutHintNoNewLine);
+					if (page) {
+						page->addChild(*param);
+					}
 				}
-			}
-			{
-				OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
-				param->setLabel(kParamProcessALabel);
-				param->setHint(kParamProcessAHint);
-				param->setDefault(processAlpha);
-				param->setIsSecret(processIsSecret);
-				if (page) {
-					page->addChild(*param);
+				{
+					OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessA);
+					param->setLabel(kParamProcessALabel);
+					param->setHint(kParamProcessAHint);
+					param->setDefault(processAlpha);
+					param->setIsSecret(processIsSecret);
+					if (page) {
+						page->addChild(*param);
+					}
 				}
 			}
 
@@ -281,250 +298,6 @@ public:
 	{
 			return r.x1 >= r.x2 || r.y1 >= r.y2;
 		}
-=======
-    CImgFilterPluginHelper(OfxImageEffectHandle handle,
-                           bool supportsTiles,
-                           bool supportsMultiResolution,
-                           bool supportsRenderScale,
-                           bool defaultUnpremult = true,
-                           bool defaultProcessAlphaOnRGBA = false)
-    : ImageEffect(handle)
-    , _dstClip(0)
-    , _srcClip(0)
-    , _maskClip(0)
-    , _processR(0)
-    , _processG(0)
-    , _processB(0)
-    , _processA(0)
-    , _premult(0)
-    , _premultChannel(0)
-    , _mix(0)
-    , _maskInvert(0)
-    , _supportsTiles(supportsTiles)
-    , _supportsMultiResolution(supportsMultiResolution)
-    , _supportsRenderScale(supportsRenderScale)
-    , _defaultUnpremult(defaultUnpremult)
-    , _defaultProcessAlphaOnRGBA(defaultProcessAlphaOnRGBA)
-    {
-        _dstClip = fetchClip(kOfxImageEffectOutputClipName);
-        assert(_dstClip && (_dstClip->getPixelComponents() == OFX::ePixelComponentRGB || _dstClip->getPixelComponents() == OFX::ePixelComponentRGBA));
-        _srcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
-        assert(_srcClip && (_srcClip->getPixelComponents() == OFX::ePixelComponentRGB || _srcClip->getPixelComponents() == OFX::ePixelComponentRGBA));
-        _maskClip = getContext() == OFX::eContextFilter ? NULL : fetchClip(getContext() == OFX::eContextPaint ? "Brush" : "Mask");
-        assert(!_maskClip || _maskClip->getPixelComponents() == OFX::ePixelComponentAlpha);
-        
-        if (!gHostHasNativeRGBACheckbox) {
-            _processR = fetchBooleanParam(kParamProcessR);
-            _processG = fetchBooleanParam(kParamProcessG);
-            _processB = fetchBooleanParam(kParamProcessB);
-            _processA = fetchBooleanParam(kParamProcessA);
-            assert(_processR && _processG && _processB && _processA);
-        }
-        _premult = fetchBooleanParam(kParamPremult);
-        _premultChannel = fetchChoiceParam(kParamPremultChannel);
-        assert(_premult && _premultChannel);
-        _mix = fetchDoubleParam(kParamMix);
-        _maskInvert = fetchBooleanParam(kParamMaskInvert);
-        assert(_mix && _maskInvert);
-    }
-
-    // override the roi call
-    virtual void getRegionsOfInterest(const OFX::RegionsOfInterestArguments &args, OFX::RegionOfInterestSetter &rois) OVERRIDE FINAL;
-
-    virtual bool getRegionOfDefinition(const OFX::RegionOfDefinitionArguments &args, OfxRectD &rod) OVERRIDE FINAL;
-
-    /* Override the render */
-    virtual void render(const OFX::RenderArguments &args) OVERRIDE FINAL;
-
-    virtual bool isIdentity(const OFX::IsIdentityArguments &args, OFX::Clip* &identityClip, double &identityTime) OVERRIDE FINAL;
-
-    virtual void changedClip(const OFX::InstanceChangedArgs &args, const std::string &clipName) OVERRIDE FINAL
-    {
-        if (clipName == kOfxImageEffectSimpleSourceClipName && _srcClip && args.reason == OFX::eChangeUserEdit) {
-            if (_defaultUnpremult) {
-                switch (_srcClip->getPreMultiplication()) {
-                    case OFX::eImageOpaque:
-                        _premult->setValue(false);
-                        break;
-                    case OFX::eImagePreMultiplied:
-                        _premult->setValue(true);
-                        break;
-                    case OFX::eImageUnPreMultiplied:
-                        _premult->setValue(false);
-                        break;
-                }
-            }
-            if (!gHostHasNativeRGBACheckbox) {
-                switch (_srcClip->getPixelComponents()) {
-                    case OFX::ePixelComponentAlpha:
-                        _processR->setValue(false);
-                        _processG->setValue(false);
-                        _processB->setValue(false);
-                        _processA->setValue(true);
-                        break;
-                    case OFX::ePixelComponentRGBA:
-                    case OFX::ePixelComponentRGB:
-                        // Alpha is not processed by default on RGBA images
-                        _processR->setValue(true);
-                        _processG->setValue(true);
-                        _processB->setValue(true);
-                        _processA->setValue(_defaultProcessAlphaOnRGBA);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-
-    // the following functions can be overridden/implemented by the plugin
-
-    virtual void getValuesAtTime(double time, Params& params) = 0;
-
-    // compute the roi required to compute rect, given params. This roi is then intersected with the image rod.
-    virtual void getRoI(const OfxRectI& rect, const OfxPointD& renderScale, const Params& params, OfxRectI* roi) = 0;
-
-    virtual bool getRoD(const OfxRectI& /*srcRoD*/, const OfxPointD& /*renderScale*/, const Params& /*params*/, OfxRectI* /*dstRoD*/) { return false; };
-
-    virtual void render(const OFX::RenderArguments &args, const Params& params, int x1, int y1,cimg_library::CImg<float>& cimg) = 0;
-
-    virtual bool isIdentity(const OFX::IsIdentityArguments &/*args*/, const Params& /*params*/) { return false; };
-
-    // 0: Black/Dirichlet, 1: Nearest/Neumann, 2: Repeat/Periodic
-    virtual int getBoundary(const Params& /*params*/) { return 0; }
-
-    //static void describe(OFX::ImageEffectDescriptor &desc, bool supportsTiles);
-
-    static OFX::PageParamDescriptor*
-    describeInContextBegin(OFX::ImageEffectDescriptor &desc,
-                           OFX::ContextEnum context,
-                           bool supportsRGBA,
-                           bool supportsRGB,
-                           bool supportsAlpha,
-                           bool supportsTiles,
-                           bool processRGB = true,
-                           bool processAlpha = false,
-                           bool processIsSecret = false)
-    {
-        
-#ifdef OFX_EXTENSIONS_NATRON
-        if (OFX::getImageEffectHostDescription()->isNatron) {
-            gHostHasNativeRGBACheckbox = true;
-        } else {
-            gHostHasNativeRGBACheckbox = false;
-        }
-#else
-        gHostHasNativeRGBACheckbox = false;
-#endif
-        
-        OFX::ClipDescriptor *srcClip = desc.defineClip(kOfxImageEffectSimpleSourceClipName);
-        if (supportsRGBA) {
-            srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-        }
-        if (supportsRGB) {
-            srcClip->addSupportedComponent(OFX::ePixelComponentRGB);
-        }
-        if (supportsAlpha) {
-            srcClip->addSupportedComponent(OFX::ePixelComponentAlpha);
-        }
-        srcClip->setTemporalClipAccess(false);
-        srcClip->setSupportsTiles(supportsTiles);
-        srcClip->setIsMask(false);
-        if (context == OFX::eContextGeneral && sourceIsOptional) {
-            srcClip->setOptional(sourceIsOptional);
-        }
-
-        OFX::ClipDescriptor *dstClip = desc.defineClip(kOfxImageEffectOutputClipName);
-        if (supportsRGBA) {
-            dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-        }
-        if (supportsRGB) {
-            dstClip->addSupportedComponent(OFX::ePixelComponentRGB);
-        }
-        if (supportsAlpha) {
-            dstClip->addSupportedComponent(OFX::ePixelComponentAlpha);
-        }
-        dstClip->setSupportsTiles(supportsTiles);
-        
-        if (context == OFX::eContextGeneral || context == OFX::eContextPaint) {
-            OFX::ClipDescriptor *maskClip = context == OFX::eContextGeneral ? desc.defineClip("Mask") : desc.defineClip("Brush");
-            maskClip->addSupportedComponent(OFX::ePixelComponentAlpha);
-            maskClip->setTemporalClipAccess(false);
-            if (context == OFX::eContextGeneral) {
-                maskClip->setOptional(true);
-            }
-            maskClip->setSupportsTiles(supportsTiles);
-            maskClip->setIsMask(true);
-        }
-
-        // create the params
-        OFX::PageParamDescriptor *page = desc.definePageParam("Controls");
-        
-        if (!gHostHasNativeRGBACheckbox) {
-            {
-                OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessR);
-                param->setLabel(kParamProcessRLabel);
-                param->setHint(kParamProcessRHint);
-                param->setDefault(processRGB);
-                param->setIsSecret(processIsSecret);
-                param->setLayoutHint(OFX::eLayoutHintNoNewLine);
-                if (page) {
-                    page->addChild(*param);
-                }
-            }
-            {
-                OFX::BooleanParamDescriptor* param = desc.defineBooleanParam(kParamProcessG);
-                param->setLabel(kParamProcessGLabel);
-                param->setHint(kParamProcessGHint);
-                param->setDefault(processRGB);
-                param->setIsSecret(processIsSecret);
-                param->setLayoutHint(OFX::eLayoutHintNoNewLine);
-                if (page) {
-                    page->addChild(*param);
-                }
-            }
-            {
-                OFX::BooleanParamDescriptor* param = desc.defineBooleanParam( kParamProcessB );
-                param->setLabel(kParamProcessBLabel);
-                param->setHint(kParamProcessBHint);
-                param->setDefault(processRGB);
-                param->setIsSecret(processIsSecret);
-                param->setLayoutHint(OFX::eLayoutHintNoNewLine);
-                if (page) {
-                    page->addChild(*param);
-                }
-            }
-            {
-                OFX::BooleanParamDescriptor* param = desc.defineBooleanParam( kParamProcessA );
-                param->setLabel(kParamProcessALabel);
-                param->setHint(kParamProcessAHint);
-                param->setDefault(processAlpha);
-                param->setIsSecret(processIsSecret);
-                if (page) {
-                    page->addChild(*param);
-                }
-            }
-        }
-        
-        return page;
-    }
-
-    static void
-    describeInContextEnd(OFX::ImageEffectDescriptor &desc,
-                         OFX::ContextEnum /*context*/,
-                         OFX::PageParamDescriptor* page)
-    {
-        ofxsPremultDescribeParams(desc, page);
-        ofxsMaskMixDescribeParams(desc, page);
-    }
-
-    // utility functions
-    static bool
-    isEmpty(const OfxRectI& r)
-    {
-        return r.x1 >= r.x2 || r.y1 >= r.y2;
-    }
->>>>>>> 81bd61045866842963281bfc99cad1ac90c1534e
 
 private:
 #ifdef CIMG_DEBUG
@@ -872,7 +645,6 @@ CImgFilterPluginHelper<Params, sourceIsOptional>::render(const OFX::RenderArgume
 
 		return;
 #endif
-<<<<<<< HEAD
 	}
 
 	const void *srcPixelData;
@@ -937,10 +709,15 @@ CImgFilterPluginHelper<Params, sourceIsOptional>::render(const OFX::RenderArgume
 	}
 
 	bool processR, processG, processB, processA;
-	_processR->getValueAtTime(time, processR);
-	_processG->getValueAtTime(time, processG);
-	_processB->getValueAtTime(time, processB);
-	_processA->getValueAtTime(time, processA);
+	if (!gHostHasNativeRGBACheckbox) {
+		_processR->getValueAtTime(time, processR);
+		_processG->getValueAtTime(time, processG);
+		_processB->getValueAtTime(time, processB);
+		_processA->getValueAtTime(time, processA);
+	}
+	else {
+		processR = processG = processB = processA = true;
+	}
 	bool premult;
 	int premultChannel;
 	_premult->getValueAtTime(time, premult);
@@ -1078,213 +855,6 @@ CImgFilterPluginHelper<Params, sourceIsOptional>::render(const OFX::RenderArgume
 	// IF THE FOLLOWING CODE HAS TO BE DISACTIVATED, PLEASE COMMENT WHY.
 	// This was disactivated by commit c47d07669b78a71960b204989d9c36f746d14a4c, then reactivated.
 	// DISACTIVATED AGAIN by FD 9/12/2014: boundary conditions are now handled by pixelcopier, and interstection with dstRoD was added above
-=======
-    }
-
-    const void *srcPixelData;
-    OfxRectI srcBounds;
-    OfxRectI srcRoD;
-    OFX::PixelComponentEnum srcPixelComponents;
-    int srcPixelComponentCount;
-    OFX::BitDepthEnum srcBitDepth;
-    //srcPixelBytes = getPixelBytes(srcPixelComponents, srcBitDepth);
-    int srcRowBytes;
-    if (!src.get()) {
-        srcPixelData = NULL;
-        srcBounds.x1 = srcBounds.y1 = srcBounds.x2 = srcBounds.y2 = 0;
-        srcRoD.x1 = srcRoD.y1 = srcRoD.x2 = srcRoD.y2 = 0;
-        srcPixelComponents = _srcClip ? _srcClip->getPixelComponents() : OFX::ePixelComponentNone;
-        srcPixelComponentCount = 0;
-        srcBitDepth = _srcClip ? _srcClip->getPixelDepth() : OFX::eBitDepthNone;
-        srcRowBytes = 0;
-    } else {
-        srcPixelData = src->getPixelData();
-        srcBounds = src->getBounds();
-        // = src->getRegionOfDefinition(); //  Nuke's image RoDs are wrong
-        OFX::MergeImages2D::toPixelEnclosing(_srcClip->getRegionOfDefinition(time), args.renderScale, _srcClip->getPixelAspectRatio(), &srcRoD);
-        srcPixelComponents = src->getPixelComponents();
-        srcPixelComponentCount = src->getPixelComponentCount();
-        srcBitDepth = src->getPixelDepth();
-        srcRowBytes = src->getRowBytes();
-    }
-
-    void *dstPixelData = dst->getPixelData();
-    const OfxRectI& dstBounds = dst->getBounds();
-    OfxRectI dstRoD; // = dst->getRegionOfDefinition(); //  Nuke's image RoDs are wrong
-    OFX::MergeImages2D::toPixelEnclosing(_dstClip->getRegionOfDefinition(time), args.renderScale, _dstClip->getPixelAspectRatio(), &dstRoD);
-    //const OFX::PixelComponentEnum dstPixelComponents = dst->getPixelComponents();
-    //const OFX::BitDepthEnum dstBitDepth = dst->getPixelDepth();
-    const int dstRowBytes = dst->getRowBytes();
-
-    if (!_supportsTiles) {
-        // http://openfx.sourceforge.net/Documentation/1.3/ofxProgrammingReference.html#kOfxImageEffectPropSupportsTiles
-        //  If a clip or plugin does not support tiled images, then the host should supply full RoD images to the effect whenever it fetches one.
-        assert(srcRoD.x1 == srcBounds.x1);
-        assert(srcRoD.x2 == srcBounds.x2);
-        assert(srcRoD.y1 == srcBounds.y1);
-        assert(srcRoD.y2 == srcBounds.y2); // crashes on Natron if kSupportsTiles=0 & kSupportsMultiResolution=1
-        assert(dstRoD.x1 == dstBounds.x1);
-        assert(dstRoD.x2 == dstBounds.x2);
-        assert(dstRoD.y1 == dstBounds.y1);
-        assert(dstRoD.y2 == dstBounds.y2); // crashes on Natron if kSupportsTiles=0 & kSupportsMultiResolution=1
-    }
-    if (!_supportsMultiResolution) {
-        // http://openfx.sourceforge.net/Documentation/1.3/ofxProgrammingReference.html#kOfxImageEffectPropSupportsMultiResolution
-        //   Multiple resolution images mean...
-        //    input and output images can be of any size
-        //    input and output images can be offset from the origin
-        assert(srcRoD.x1 == 0);
-        assert(srcRoD.y1 == 0);
-        assert(srcRoD.x1 == dstRoD.x1);
-        assert(srcRoD.x2 == dstRoD.x2);
-        assert(srcRoD.y1 == dstRoD.y1);
-        assert(srcRoD.y2 == dstRoD.y2); // crashes on Natron if kSupportsMultiResolution=0
-    }
-    
-    bool processR, processG, processB, processA;
-    if (!gHostHasNativeRGBACheckbox) {
-        _processR->getValueAtTime(time, processR);
-        _processG->getValueAtTime(time, processG);
-        _processB->getValueAtTime(time, processB);
-        _processA->getValueAtTime(time, processA);
-    } else {
-        processR = processG = processB = processA = true;
-    }
-    bool premult;
-    int premultChannel;
-    _premult->getValueAtTime(time, premult);
-    _premultChannel->getValueAtTime(time, premultChannel);
-    double mix;
-    _mix->getValueAtTime(time, mix);
-    bool maskInvert;
-    _maskInvert->getValueAtTime(time, maskInvert);
-    if (!processR && !processG && !processB) {
-        // no need to (un)premult if we don't change colors
-        premult = false;
-    }
-
-    std::auto_ptr<const OFX::Image> mask((getContext() != OFX::eContextFilter && _maskClip && _maskClip->isConnected()) ?
-                                         _maskClip->fetchImage(time) : 0);
-    OfxRectI processWindow = renderWindow; //!< the window where pixels have to be computed (may be smaller than renderWindow if mask is zero on the borders)
-
-    if (mix == 0.) {
-        // no processing at all
-        processWindow.x2 = processWindow.x1;
-        processWindow.y2 = processWindow.y1;
-    }
-    if (mask.get()) {
-        if (mask->getRenderScale().x != renderScale.x ||
-            mask->getRenderScale().y != renderScale.y ||
-            (mask->getField() != OFX::eFieldNone /* for DaVinci Resolve */ && mask->getField() != args.fieldToRender)) {
-            setPersistentMessage(OFX::Message::eMessageError, "", "OFX Host gave image with wrong scale or field properties");
-            OFX::throwSuiteStatusException(kOfxStatFailed);
-        }
-
-
-        // shrink the processWindow at much as possible
-        // top
-        while (processWindow.y2 > processWindow.y1 && maskLineIsZero(mask.get(), processWindow.x1, processWindow.x2, processWindow.y2-1, maskInvert)) {
-            --processWindow.y2;
-        }
-        // bottom
-        while (processWindow.y2 > processWindow.y1 && maskLineIsZero(mask.get(), processWindow.x1, processWindow.x2, processWindow.y1, maskInvert)) {
-            ++processWindow.y1;
-        }
-        // left
-        while (processWindow.x2 > processWindow.x1 && maskColumnIsZero(mask.get(), processWindow.x1, processWindow.y1, processWindow.y2, maskInvert)) {
-            ++processWindow.x1;
-        }
-        // right
-        while (processWindow.x2 > processWindow.x1 && maskColumnIsZero(mask.get(), processWindow.x2-1, processWindow.y1, processWindow.y2, maskInvert)) {
-            --processWindow.x2;
-        }
-    }
-
-    Params params;
-    getValuesAtTime(time, params);
-    int srcBoundary = getBoundary(params);
-    assert(0 <= srcBoundary && srcBoundary <= 2);
-
-    // copy areas of renderWindow that are not within processWindow to dst
-
-    OfxRectI copyWindowN, copyWindowS, copyWindowE, copyWindowW;
-    // top
-    copyWindowN.x1 = renderWindow.x1;
-    copyWindowN.x2 = renderWindow.x2;
-    copyWindowN.y1 = processWindow.y2;
-    copyWindowN.y2 = renderWindow.y2;
-    // bottom
-    copyWindowS.x1 = renderWindow.x1;
-    copyWindowS.x2 = renderWindow.x2;
-    copyWindowS.y1 = renderWindow.y1;
-    copyWindowS.y2 = processWindow.y1;
-    // left
-    copyWindowW.x1 = renderWindow.x1;
-    copyWindowW.x2 = processWindow.x1;
-    copyWindowW.y1 = processWindow.y1;
-    copyWindowW.y2 = processWindow.y2;
-    // right
-    copyWindowE.x1 = processWindow.x2;
-    copyWindowE.x2 = renderWindow.x2;
-    copyWindowE.y1 = processWindow.y1;
-    copyWindowE.y2 = processWindow.y2;
-    {
-        std::auto_ptr<OFX::PixelProcessorFilterBase> fred;
-        if (dstPixelComponentCount == 4) {
-            fred.reset(new OFX::PixelCopier<float, 4>(*this));
-        } else if (dstPixelComponentCount == 3) {
-            fred.reset(new OFX::PixelCopier<float, 3>(*this));
-        } else if (dstPixelComponentCount == 2) {
-            fred.reset(new OFX::PixelCopier<float, 2>(*this));
-        }  else if (dstPixelComponentCount == 1) {
-            fred.reset(new OFX::PixelCopier<float, 1>(*this));
-        }
-        setupAndCopy(*fred, time, copyWindowN, src.get(), mask.get(),
-                     srcPixelData, srcBounds, srcPixelComponents, srcPixelComponentCount, srcBitDepth, srcRowBytes, srcBoundary,
-                     dstPixelData, dstBounds, dstPixelComponents, dstPixelComponentCount, dstBitDepth, dstRowBytes,
-                     premult, premultChannel, mix, maskInvert);
-        setupAndCopy(*fred, time, copyWindowS, src.get(), mask.get(),
-                     srcPixelData, srcBounds, srcPixelComponents, srcPixelComponentCount, srcBitDepth, srcRowBytes, srcBoundary,
-                     dstPixelData, dstBounds, dstPixelComponents, dstPixelComponentCount, dstBitDepth, dstRowBytes,
-                     premult, premultChannel, mix, maskInvert);
-        setupAndCopy(*fred, time, copyWindowW, src.get(), mask.get(),
-                     srcPixelData, srcBounds, srcPixelComponents, srcPixelComponentCount, srcBitDepth, srcRowBytes, srcBoundary,
-                     dstPixelData, dstBounds, dstPixelComponents, dstPixelComponentCount, dstBitDepth, dstRowBytes,
-                     premult, premultChannel, mix, maskInvert);
-        setupAndCopy(*fred, time, copyWindowE, src.get(), mask.get(),
-                     srcPixelData, srcBounds, srcPixelComponents, srcPixelComponentCount, srcBitDepth, srcRowBytes, srcBoundary,
-                     dstPixelData, dstBounds, dstPixelComponents, dstPixelComponentCount, dstBitDepth, dstRowBytes,
-                     premult, premultChannel, mix, maskInvert);
-    }
-
-    printRectI("srcRoD",srcRoD);
-    printRectI("srcBounds",srcBounds);
-    printRectI("dstRoD",dstRoD);
-    printRectI("dstBounds",dstBounds);
-    printRectI("renderWindow",renderWindow);
-    printRectI("processWindow",processWindow);
-    
-    if (isEmpty(processWindow)) {
-        // the area that actually has to be processed is empty, the job is finished!
-        return;
-    }
-    assert(mix != 0.); // mix == 0. should give an empty processWindow
-
-    const bool doMasking = getContext() != OFX::eContextFilter && _maskClip->isConnected();
-
-    // compute the src ROI (should be consistent with getRegionsOfInterest())
-    OfxRectI srcRoI;
-    getRoI(processWindow, renderScale, params, &srcRoI);
-
-    // intersect against the destination RoD
-    OFX::MergeImages2D::rectIntersection(srcRoI, dstRoD, &srcRoI);
-
-    // The following checks may be wrong, because the srcRoI may be outside of the region of definition of src.
-    // It is not an error: areas outside of srcRoD should be considered black and transparent.
-    // IF THE FOLLOWING CODE HAS TO BE DISACTIVATED, PLEASE COMMENT WHY.
-    // This was disactivated by commit c47d07669b78a71960b204989d9c36f746d14a4c, then reactivated.
-    // DISACTIVATED AGAIN by FD 9/12/2014: boundary conditions are now handled by pixelcopier, and interstection with dstRoD was added above
->>>>>>> 81bd61045866842963281bfc99cad1ac90c1534e
 #if 0 //def CIMGFILTER_INSTERSECT_ROI
 	OFX::MergeImages2D::rectIntersection(srcRoI, srcRoD, &srcRoI);
 	// the resulting ROI should be within the src bounds, or it means that the host didn't take into account the region of interest (see getRegionsOfInterest() )
@@ -1584,7 +1154,6 @@ CImgFilterPluginHelper<Params, sourceIsOptional>::isIdentity(const OFX::IsIdenti
 OFX::Clip * &identityClip,
 double &/*identityTime*/)
 {
-<<<<<<< HEAD
 	if (!_supportsRenderScale && (args.renderScale.x != 1. || args.renderScale.y != 1.)) {
 		OFX::throwSuiteStatusException(kOfxStatFailed);
 	}
@@ -1597,17 +1166,19 @@ double &/*identityTime*/)
 		return true;
 	}
 
-	bool processR;
-	bool processG;
-	bool processB;
-	bool processA;
-	_processR->getValueAtTime(args.time, processR);
-	_processG->getValueAtTime(args.time, processG);
-	_processB->getValueAtTime(args.time, processB);
-	_processA->getValueAtTime(args.time, processA);
-	if (!processR && !processG && !processB && !processA) {
-		identityClip = _srcClip;
-		return true;
+	if (!gHostHasNativeRGBACheckbox) {
+		bool processR;
+		bool processG;
+		bool processB;
+		bool processA;
+		_processR->getValueAtTime(args.time, processR);
+		_processG->getValueAtTime(args.time, processG);
+		_processB->getValueAtTime(args.time, processB);
+		_processA->getValueAtTime(args.time, processA);
+		if (!processR && !processG && !processB && !processA) {
+			identityClip = _srcClip;
+			return true;
+		}
 	}
 
 	Params params;
@@ -1617,42 +1188,6 @@ double &/*identityTime*/)
 		return true;
 	}
 	return false;
-=======
-    if (!_supportsRenderScale && (args.renderScale.x != 1. || args.renderScale.y != 1.)) {
-        OFX::throwSuiteStatusException(kOfxStatFailed);
-    }
-    const double time = args.time;
-    
-    double mix;
-    _mix->getValueAtTime(time, mix);
-    if (mix == 0.) {
-        identityClip = _srcClip;
-        return true;
-    }
-    
-    if (!gHostHasNativeRGBACheckbox) {
-        bool processR;
-        bool processG;
-        bool processB;
-        bool processA;
-        _processR->getValueAtTime(args.time, processR);
-        _processG->getValueAtTime(args.time, processG);
-        _processB->getValueAtTime(args.time, processB);
-        _processA->getValueAtTime(args.time, processA);
-        if (!processR && !processG && !processB && !processA) {
-            identityClip = _srcClip;
-            return true;
-        }
-    }
-    
-    Params params;
-    getValuesAtTime(time, params);
-    if (isIdentity(args, params)) {
-        identityClip = _srcClip;
-        return true;
-    }
-    return false;
->>>>>>> 81bd61045866842963281bfc99cad1ac90c1534e
 }
 
 #endif

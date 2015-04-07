@@ -64,7 +64,7 @@ class IntelGodRaysProcessorBase : public OFX::ImageProcessor
 {
 protected:
 	const OFX::Image       *_srcImg;        /**< @brief image to process into */
-	OfxPointD center;
+	OfxPointI lightPosition;
 	double blend;
 	double decay;
 	double weight;
@@ -81,8 +81,8 @@ public:
 
 	void setSrcImg(const OFX::Image *v) { _srcImg = v; }
 
-	void setCenter(const OfxPointD _center){
-		center = _center;
+	void setLightPosition(const OfxPointI _lightPosition){
+		lightPosition = _lightPosition;
 	}
 
 	void setValues(double _blend, double _decay, double _weight, double _exposure, double _threshold, bool _mergeOver){
@@ -128,13 +128,13 @@ public:
 		imgSize.x = w;
 		imgSize.y = h;
 
-		if ((std::abs(center.x) > 10000) || (std::abs(center.y) > 10000)){
+		if ((std::abs(lightPosition.x) > 1000000) || (std::abs(lightPosition.y) > 1000000)){
 			return;
 		}
 
 		for (int ray = 0; ray < raysCount; ray++){
 			if ((ray % nThreads) == threadId){
-				EvaluateRay(ray, imgSize, blend, center, decay, weight, exposure, threshold, mergeOver ? 1 : 0);
+				EvaluateRay(ray, imgSize, blend, lightPosition, decay, weight, exposure, threshold, mergeOver ? 1 : 0);
 			}
 		}
 	}
@@ -220,17 +220,17 @@ public:
 	// Intel Corporation is the author of the Materials, and requests that all
 	// problem reports or change requests be submitted to it directly
 
-	void EvaluateRay(int in_RayNum, OfxPointI imgSize, float blend,
-		OfxPointD center, float Decay, float Weight, float InvExposure, float fThreshold, int iMergeOver)
+	void EvaluateRay(int in_RayNum, OfxPointI imgSize, double blend,
+		OfxPointI lightPosition, double Decay, double Weight, double InvExposure, double fThreshold, int iMergeOver)
 	{
-		int LightScreenPosX = int(imgSize.x * center.x);
-		int LightScreenPosY = int(imgSize.y * center.y);
+		int LightScreenPosX = lightPosition.x;
+		int LightScreenPosY = lightPosition.y;
 
 		//------------------------------------------------------------
 		//-----------God Rays OpenCL HDR Post Processing here---------
 		//------------------------------------------------------------
 		//in_pData params
-		float _InvExposure = InvExposure;
+		double _InvExposure = InvExposure;
 
 		// Width of the image
 		int x_last = imgSize.x - 1;
@@ -405,7 +405,7 @@ public:
 		}
 		// Calculate Bresenham parameters for the original ray and correct the
 		// Decay value by the step length.
-		float FixedDecay = 0.0f;
+		double FixedDecay = 0.0f;
 		int di = 0;
 		int di_s = 0;
 		int steps = 0;
@@ -701,10 +701,10 @@ public:
 
 		// Load method parameters.
 
-		float Decay_128 = FixedDecay;
+		double Decay_128 = FixedDecay;
 		FixedDecay = 1.0f - FixedDecay;
-		float nDecay_128 = FixedDecay;
-		float NExposure_128 = _InvExposure;
+		double nDecay_128 = FixedDecay;
+		double NExposure_128 = _InvExposure;
 		float summ_128[] = { 0.f, 0.f, 0.f, 0.f };
 
 		//Load the first pixel of the ray.  
@@ -953,11 +953,18 @@ IntelGodRaysPlugin::setupAndProcess(IntelGodRaysProcessorBase & processor, const
 
 	OfxPointD center;
 	_centerPoint->getValueAtTime(args.time, center.x, center.y);
-	processor.setCenter(center);
-
 
 	bool centerUsePx;
 	_CenterUsePx->getValueAtTime(args.time, centerUsePx);
+
+	OfxRectI bounds = dst->getRegionOfDefinition();
+
+	OfxPointI lightCenter;
+
+	lightCenter.x = int((centerUsePx ? dst->getRenderScale().x : (double)bounds.x2) * center.x);
+	lightCenter.y = int((centerUsePx ? dst->getRenderScale().y : (double)bounds.y2) * center.y);
+
+	processor.setLightPosition(lightCenter);
 
 	double blend = _blend->getValueAtTime(args.time);
 	double decay = -_decay->getValueAtTime(args.time);
